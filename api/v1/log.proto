@@ -1,0 +1,13 @@
+syntax = "proto3";
+package log.v1;
+
+import "gogoproto/gogo.proto";
+
+option (gogoproto.marshaler_all) = true;
+option (gogoproto.unmarshaler_all) = true;
+option (gogoproto.sizer_all) = true;
+
+message Record {
+  bytes value = 1;
+  uint64 offset = 2;
+}
