@@ -11,8 +11,10 @@ import (
 )
 
 type segment struct {
-	store                  *store
-	index                  *index
+	store *store
+	index *index
+	// baseOffset tracks offset of the first record
+	// nextOffset tracks offset value of the next record appended
 	baseOffset, nextOffset uint64
 	// used to check config limits and lets us know when our segment is maxed out
 	config Config
@@ -99,7 +101,7 @@ func (this *segment) Read(off uint64) (*api.Record, error) {
 		return nil, err
 	}
 
-	var record *api.Record
+	record := new(api.Record)
 	err = proto.Unmarshal(b, record)
 	if err != nil {
 		return nil, err
