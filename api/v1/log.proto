@@ -11,3 +11,30 @@ message Record {
   bytes value = 1;
   uint64 offset = 2;
 }
+
+service Log {
+  rpc Produce(ProduceRequest) returns (ProduceResponse) {}
+  rpc Consume(ConsumeRequest) returns (ConsumeResponse) {}
+  // unidirectrional stream:  returns a stream to read a sequence of messages
+  rpc ConsumeStream(ConsumeRequest) returns (stream ConsumeResponse) {}
+  // bidirectrional stream: where the streams operate independently
+  // - the server could batch requests and send back a single response
+  // - the server could send back a response for each request
+  rpc ProduceStream(stream ProduceRequest) returns (stream ProduceResponse) {}
+}
+
+message ProduceRequest {
+  Record record = 1; // record to produce for the log
+}
+
+message ProduceResponse {
+  uint64 offset = 1; // sends back the record's offset, basically the identifier's offset
+}
+
+message ConsumeRequest {
+  uint64 offset = 1; // offset of the record they want to consume
+}
+
+message ConsumeResponse {
+  Record record = 2;
+}
