@@ -1,15 +1,19 @@
 package agent
 
 import (
+	"bytes"
 	"crypto/tls"
 	"fmt"
+	"io"
 	"net"
 	"sync"
+	"time"
 
+	"github.com/hashicorp/raft"
+	"github.com/soheilhy/cmux"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
-	api "proglog/api/v1"
 	"proglog/internal/auth"
 	"proglog/internal/discovery"
 	"proglog/internal/log"
@@ -22,6 +26,7 @@ func New(config Config) (*Agent, error) {
 		shutdowns: make(chan struct{}),
 	}
 	setup := []func() error{
+		a.setupMux,
 		a.setupLog,
 		a.setupServer,
 		a.setupMembership,
@@ -32,17 +37,61 @@ func New(config Config) (*Agent, error) {
 			return nil, err
 		}
 	}
+	var err error
 
-	return a, nil
+	// launch the server
+	go a.serve()
+
+	return a, err
+}
+
+func (this *Agent) serve() error {
+	err := this.mux.Serve()
+	if err != nil {
+		_ = this.Shutdown()
+		return err
+	}
+
+	return nil
 }
 
 func (this *Agent) setupLog() error {
-	var err error
-	this.log, err = log.NewLog(
-		this.Config.DataDir,
-		log.Config{}, // using defaults here
+	raftLn := this.mux.Match(func(reader io.Reader) bool {
+		// read one byte to identify the raft connection
+		b := make([]byte, 1)
+		_, err := reader.Read(b)
+		if err != nil {
+			return false
+		}
+		return bytes.Compare(
+			b,
+			[]byte{byte(log.RaftRPC)},
+		) == 0
+	})
+
+	logConfig := log.Config{}
+	logConfig.Raft.StreamLayer = log.NewStreamLayer(
+		raftLn,
+		this.Config.ServerTLSConfig,
+		this.Config.PeerTLSConfig,
 	)
-	return err
+	logConfig.Raft.LocalID = raft.ServerID(this.Config.NodeName)
+	logConfig.Raft.Bootstrap = this.Config.Bootstrap
+
+	var err error
+	this.log, err = log.NewDistributedLog(
+		this.Config.DataDir,
+		logConfig,
+	)
+	if err != nil {
+		return err
+	}
+
+	if this.Config.Bootstrap {
+		return this.log.WaitForLeader(3 * time.Second)
+	}
+
+	return nil
 }
 
 func (this *Agent) setupServer() error {
@@ -66,14 +115,13 @@ func (this *Agent) setupServer() error {
 		return err
 	}
 
-	ln, err := net.Listen("tcp", this.RPCAddr())
-	if err != nil {
-		return err
-	}
-
-	// launch the server
+	// we've mutiplexed two connection types (Raft and gRPC)
+	// we've already added a matcher for the Raft connections
+	// so we know all other connections are gRPC
+	// thus, we can use the Any matcher to get the right listener
+	grpcLn := this.mux.Match(cmux.Any())
 	go func() {
-		err := this.server.Serve(ln)
+		err := this.server.Serve(grpcLn)
 		if err != nil {
 			_ = this.Shutdown()
 		}
@@ -84,26 +132,7 @@ func (this *Agent) setupServer() error {
 
 func (this *Agent) setupMembership() error {
 	var err error
-	var opts []grpc.DialOption
-	if this.Config.PeerTLSConfig != nil {
-		opts = append(opts,
-			grpc.WithTransportCredentials(
-				credentials.NewTLS(this.PeerTLSConfig),
-			),
-		)
-	}
-	conn, err := grpc.Dial(this.Config.RPCAddr(), opts...)
-	if err != nil {
-		return err
-	}
-
-	client := api.NewLogClient(conn)
-	this.replicator = &log.Replicator{
-		DialOptions: opts,
-		LocalServer: client,
-	}
-
-	this.membership, err = discovery.New(this.replicator, discovery.Config{
+	this.membership, err = discovery.New(this.log, discovery.Config{
 		NodeName: this.Config.NodeName,
 		BindAddr: this.Config.BindAddr,
 		Tags: map[string]string{
@@ -118,13 +147,14 @@ func (this *Agent) setupMembership() error {
 type Agent struct {
 	Config
 
-	log        *log.Log
+	mux        cmux.CMux
+	log        *log.DistributedLog
 	server     *grpc.Server
 	membership *discovery.Membership
-	replicator *log.Replicator
 
-	shutdown     bool
-	shutdowns    chan struct{}
+	shutdown  bool
+	shutdowns chan struct {
+	}
 	shutdownLock sync.Mutex
 }
 
@@ -138,6 +168,7 @@ type Config struct {
 	StartJoinAddrs  []string
 	ACLModelFile    string
 	ACLPolicyFile   string
+	Bootstrap       bool
 }
 
 func (this *Config) RPCAddr() string {
@@ -162,7 +193,6 @@ func (this *Agent) Shutdown() error {
 	}
 	shutdown := []func() error{
 		this.membership.Leave,
-		this.replicator.Close,
 		serverCloseFn,
 		this.log.Close,
 	}
@@ -173,5 +203,21 @@ func (this *Agent) Shutdown() error {
 		}
 	}
 
+	return nil
+}
+
+func (this *Agent) setupMux() error {
+	// creates a listener on our RPC address that'll accept both Raft and gRPC connections
+	rpcAddr := fmt.Sprintf(
+		"%s:%d",
+		this.Config.BindAddr.IP.String(),
+		this.Config.RPCPort,
+	)
+	ln, err := net.Listen("tcp", rpcAddr)
+	if err != nil {
+		return err
+	}
+
+	this.mux = cmux.New(ln)
 	return nil
 }

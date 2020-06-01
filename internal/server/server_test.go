@@ -15,7 +15,7 @@ import (
 	api "proglog/api/v1"
 	"proglog/config"
 	"proglog/internal/auth"
-	"proglog/internal/log"
+	"proglog/internal/log-"
 )
 
 func TestServer(t *testing.T) {
@@ -93,7 +93,7 @@ func testSetup(t *testing.T, fn func(*Config)) (
 	dir, err := ioutil.TempDir("", "server-test")
 	require.NoError(t, err)
 
-	clog, err := log.NewLog(dir, log.Config{})
+	clog, err := log_2.NewLog(dir, log_2.Config{})
 	require.NoError(t, err)
 
 	authorizer := auth.New(config.ACLModelFile, config.ACLPolicyFile)
