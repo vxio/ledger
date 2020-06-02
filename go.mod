@@ -16,7 +16,7 @@ require (
 	github.com/travisjeffery/go-dynaport v1.0.0
 	github.com/tysontate/gommap v0.0.0-20190103205956-899e1273fb5c
 	google.golang.org/genproto v0.0.0-20190819201941-24fa4b261c55
-	google.golang.org/grpc v1.21.1
+	google.golang.org/grpc v1.29.1
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
 	launchpad.net/gocheck v0.0.0-20140225173054-000000000087 // indirect
 )

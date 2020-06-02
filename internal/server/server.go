@@ -25,6 +25,7 @@ var _ api.LogServer = (*grpcServer)(nil)
 type Config struct {
 	CommitLog  CommitLog
 	Authorizer Authorizer
+	GetSeverer GetServerer
 }
 
 type CommitLog interface {
@@ -34,6 +35,10 @@ type CommitLog interface {
 
 type Authorizer interface {
 	Authorize(subject, object, action string) error
+}
+
+type GetServerer interface {
+	GetServers() ([]*api.Server, error)
 }
 
 type grpcServer struct {
@@ -137,6 +142,15 @@ func (this *grpcServer) ConsumeStream(req *api.ConsumeRequest, stream api.Log_Co
 		}
 
 	}
+}
+
+func (s *grpcServer) GetServers(ctx context.Context, req *api.GetServersRequest) (*api.GetServersResponse, error) {
+	servers, err := s.GetSeverer.GetServers()
+	if err != nil {
+		return nil, err
+	}
+
+	return &api.GetServersResponse{Servers: servers}, nil
 }
 
 // intercepter reads subject out of the client's cert and writes it to the RPC's context

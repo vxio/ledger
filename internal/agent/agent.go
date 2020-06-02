@@ -26,6 +26,7 @@ func New(config Config) (*Agent, error) {
 		shutdowns: make(chan struct{}),
 	}
 	setup := []func() error{
+		// order matters here
 		a.setupMux,
 		a.setupLog,
 		a.setupServer,
@@ -101,6 +102,7 @@ func (this *Agent) setupServer() error {
 			this.Config.ACLModelFile,
 			this.Config.ACLPolicyFile,
 		),
+		GetSeverer: this.log,
 	}
 
 	var opts []grpc.ServerOption

@@ -23,6 +23,7 @@ service Log {
   // - the server could batch requests and send back a single response
   // - the server could send back a response for each request
   rpc ProduceStream(stream ProduceRequest) returns (stream ProduceResponse) {}
+  rpc GetServers(GetServersRequest) returns (GetServersResponse) {}
 }
 
 message ProduceRequest {
@@ -40,3 +41,18 @@ message ConsumeRequest {
 message ConsumeResponse {
   Record record = 2;
 }
+
+message GetServersRequest {}
+
+message GetServersResponse {
+  repeated Server servers = 1;
+}
+
+message Server {
+  string id = 1;
+  string rpc_addr = 2;
+  bool is_leader = 3;
+}
+
+
+
