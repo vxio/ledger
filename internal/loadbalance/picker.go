@@ -9,6 +9,13 @@ import (
 	"google.golang.org/grpc/balancer/base"
 )
 
+// todo: remove init() and call externally
+func init() {
+	balancer.Register(
+		base.NewBalancerBuilderV2(Name, &Picker{}, base.Config{}),
+	)
+}
+
 var _ base.V2PickerBuilder = (*Picker)(nil)
 
 type Picker struct {
@@ -58,11 +65,4 @@ func (p *Picker) nextFollower() balancer.SubConn {
 	len := uint64(len(p.followers))
 	idx := int(cur % len)
 	return p.followers[idx]
-}
-
-// todo: remove init() and call externally
-func init() {
-	balancer.Register(
-		base.NewBalancerBuilderV2(Name, &Picker{}, base.Config{}),
-	)
 }

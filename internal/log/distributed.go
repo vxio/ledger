@@ -254,12 +254,14 @@ type fsm struct {
 	log *Log
 }
 
+// RequestType identifies the request type so we know how to handle it
 type RequestType uint8
 
 const (
 	AppendRequestType RequestType = 0
 )
 
+// Raft invokes this method after committing a log entry
 func (l *fsm) Apply(record *raft.Log) interface{} {
 	buf := record.Data
 	reqType := RequestType(buf[0])
@@ -270,6 +272,7 @@ func (l *fsm) Apply(record *raft.Log) interface{} {
 	return nil
 }
 
+// unmarshals the record and append it to our local log file
 func (l *fsm) applyAppend(b []byte) interface{} {
 	var req api.ProduceRequest
 	err := req.Unmarshal(b)

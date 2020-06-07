@@ -46,17 +46,22 @@ type grpcServer struct {
 }
 
 func NewGRPCServer(config *Config, opts ...grpc.ServerOption) (*grpc.Server, error) {
-	opts = append(opts,
-		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(grpc_auth.StreamServerInterceptor(authenticate))),
-		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(grpc_auth.UnaryServerInterceptor(authenticate))),
-	)
-	gsrv := grpc.NewServer(opts...)
-	srv, err := newServer(config)
+	// todo: should actually change this to another flag here for disabling authentication
+	if config.Authorizer != nil {
+		opts = append(opts,
+			grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(grpc_auth.StreamServerInterceptor(authenticate))),
+			grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(grpc_auth.UnaryServerInterceptor(authenticate))),
+		)
+	}
+	grpcServer := grpc.NewServer(opts...)
+
+	logServer, err := newServer(config)
 	if err != nil {
 		return nil, err
 	}
-	api.RegisterLogServer(gsrv, srv)
-	return gsrv, nil
+
+	api.RegisterLogServer(grpcServer, logServer)
+	return grpcServer, nil
 }
 
 func newServer(config *Config) (*grpcServer, error) {
@@ -65,9 +70,11 @@ func newServer(config *Config) (*grpcServer, error) {
 }
 
 func (this *grpcServer) Produce(ctx context.Context, req *api.ProduceRequest) (*api.ProduceResponse, error) {
-	err := this.Authorizer.Authorize(subject(ctx), objectWildcard, consumeAction)
-	if err != nil {
-		return nil, err
+	if this.Authorizer != nil {
+		err := this.Authorizer.Authorize(subject(ctx), objectWildcard, consumeAction)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	offset, err := this.CommitLog.Append(req.Record)
@@ -79,10 +86,13 @@ func (this *grpcServer) Produce(ctx context.Context, req *api.ProduceRequest) (*
 }
 
 func (this *grpcServer) Consume(ctx context.Context, req *api.ConsumeRequest) (*api.ConsumeResponse, error) {
-	err := this.Authorizer.Authorize(subject(ctx), objectWildcard, consumeAction)
-	if err != nil {
-		return nil, err
+	if this.Authorizer != nil {
+		err := this.Authorizer.Authorize(subject(ctx), objectWildcard, consumeAction)
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	record, err := this.CommitLog.Read(req.Offset)
 	if err != nil {
 		return nil, err

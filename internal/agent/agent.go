@@ -164,13 +164,16 @@ type Config struct {
 	ServerTLSConfig *tls.Config
 	PeerTLSConfig   *tls.Config
 	DataDir         string
-	BindAddr        *net.TCPAddr
-	RPCPort         int
-	NodeName        string
-	StartJoinAddrs  []string
-	ACLModelFile    string
-	ACLPolicyFile   string
-	Bootstrap       bool
+	// BindAddr.IP is base address for both RPC and Serf
+	// BindAddr.Port is used by Serf
+	BindAddr *net.TCPAddr
+	// RPCPort used for our server address
+	RPCPort        int
+	NodeName       string
+	StartJoinAddrs []string
+	ACLModelFile   string
+	ACLPolicyFile  string
+	Bootstrap      bool
 }
 
 func (this *Config) RPCAddr() string {
@@ -210,6 +213,7 @@ func (this *Agent) Shutdown() error {
 
 func (this *Agent) setupMux() error {
 	// creates a listener on our RPC address that'll accept both Raft and gRPC connections
+	// todo: use helper method
 	rpcAddr := fmt.Sprintf(
 		"%s:%d",
 		this.Config.BindAddr.IP.String(),

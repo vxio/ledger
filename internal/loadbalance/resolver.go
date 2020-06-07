@@ -14,6 +14,11 @@ import (
 	api "proglog/api/v1"
 )
 
+// todo: remove init and call externally in agent
+func init() {
+	resolver.Register(&Resolver{})
+}
+
 // type that will fulfill gRPC's resolver.Builder and resolver.Resolver interfaces
 type Resolver struct {
 	mu            sync.Mutex
@@ -55,10 +60,6 @@ func (r *Resolver) Scheme() string {
 }
 
 var _ resolver.Builder = (*Resolver)(nil)
-
-func init() {
-	resolver.Register(&Resolver{})
-}
 
 var _ resolver.Resolver = (*Resolver)(nil)
 

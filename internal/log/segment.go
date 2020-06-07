@@ -27,6 +27,7 @@ func newSegment(dir string, baseOffset uint64, c Config) (*segment, error) {
 	}
 	var err error
 	storeFile, err := os.OpenFile(
+		//  filaname is {baseOffset}.store, e.g. 10.store
 		path.Join(dir, fmt.Sprintf("%d%s", baseOffset, ".store")),
 		os.O_RDWR|os.O_CREATE|os.O_APPEND,
 		0644,

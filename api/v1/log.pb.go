@@ -5,6 +5,7 @@ package log_v1
 
 import (
 	context "context"
+	encoding_binary "encoding/binary"
 	fmt "fmt"
 	_ "github.com/gogo/protobuf/proto"
 	proto "github.com/gogo/protobuf/proto"
@@ -435,6 +436,147 @@ func (m *Server) GetIsLeader() bool {
 	return false
 }
 
+type Transaction struct {
+	Value                float64  `protobuf:"fixed64,1,opt,name=value,proto3" json:"value,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *Transaction) Reset()         { *m = Transaction{} }
+func (m *Transaction) String() string { return proto.CompactTextString(m) }
+func (*Transaction) ProtoMessage()    {}
+func (*Transaction) Descriptor() ([]byte, []int) {
+	return fileDescriptor_19a5c3fde3f7ae80, []int{8}
+}
+func (m *Transaction) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *Transaction) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_Transaction.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *Transaction) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Transaction.Merge(m, src)
+}
+func (m *Transaction) XXX_Size() int {
+	return m.Size()
+}
+func (m *Transaction) XXX_DiscardUnknown() {
+	xxx_messageInfo_Transaction.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Transaction proto.InternalMessageInfo
+
+func (m *Transaction) GetValue() float64 {
+	if m != nil {
+		return m.Value
+	}
+	return 0
+}
+
+type TransactionRequest struct {
+	Value                float64  `protobuf:"fixed64,1,opt,name=value,proto3" json:"value,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *TransactionRequest) Reset()         { *m = TransactionRequest{} }
+func (m *TransactionRequest) String() string { return proto.CompactTextString(m) }
+func (*TransactionRequest) ProtoMessage()    {}
+func (*TransactionRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_19a5c3fde3f7ae80, []int{9}
+}
+func (m *TransactionRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *TransactionRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_TransactionRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *TransactionRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_TransactionRequest.Merge(m, src)
+}
+func (m *TransactionRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *TransactionRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_TransactionRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_TransactionRequest proto.InternalMessageInfo
+
+func (m *TransactionRequest) GetValue() float64 {
+	if m != nil {
+		return m.Value
+	}
+	return 0
+}
+
+type TransactionResponse struct {
+	Transaction          *Transaction `protobuf:"bytes,1,opt,name=transaction,proto3" json:"transaction,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}     `json:"-"`
+	XXX_unrecognized     []byte       `json:"-"`
+	XXX_sizecache        int32        `json:"-"`
+}
+
+func (m *TransactionResponse) Reset()         { *m = TransactionResponse{} }
+func (m *TransactionResponse) String() string { return proto.CompactTextString(m) }
+func (*TransactionResponse) ProtoMessage()    {}
+func (*TransactionResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_19a5c3fde3f7ae80, []int{10}
+}
+func (m *TransactionResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *TransactionResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_TransactionResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *TransactionResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_TransactionResponse.Merge(m, src)
+}
+func (m *TransactionResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *TransactionResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_TransactionResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_TransactionResponse proto.InternalMessageInfo
+
+func (m *TransactionResponse) GetTransaction() *Transaction {
+	if m != nil {
+		return m.Transaction
+	}
+	return nil
+}
+
 func init() {
 	proto.RegisterType((*Record)(nil), "log.v1.Record")
 	proto.RegisterType((*ProduceRequest)(nil), "log.v1.ProduceRequest")
@@ -444,39 +586,47 @@ func init() {
 	proto.RegisterType((*GetServersRequest)(nil), "log.v1.GetServersRequest")
 	proto.RegisterType((*GetServersResponse)(nil), "log.v1.GetServersResponse")
 	proto.RegisterType((*Server)(nil), "log.v1.Server")
+	proto.RegisterType((*Transaction)(nil), "log.v1.Transaction")
+	proto.RegisterType((*TransactionRequest)(nil), "log.v1.TransactionRequest")
+	proto.RegisterType((*TransactionResponse)(nil), "log.v1.TransactionResponse")
 }
 
 func init() { proto.RegisterFile("api/v1/log.proto", fileDescriptor_19a5c3fde3f7ae80) }
 
 var fileDescriptor_19a5c3fde3f7ae80 = []byte{
-	// 419 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x53, 0x4d, 0x6f, 0xd3, 0x40,
-	0x10, 0xed, 0x3a, 0xc1, 0x49, 0x86, 0xc6, 0x85, 0xa1, 0x2a, 0xae, 0x91, 0x22, 0x6b, 0x0f, 0xc8,
-	0x5c, 0x92, 0xb6, 0x5c, 0x40, 0x42, 0x48, 0x7c, 0x5f, 0x7a, 0xa8, 0xb6, 0x77, 0x2a, 0xe3, 0xdd,
-	0x5a, 0x96, 0x92, 0xae, 0xd9, 0xb5, 0x2d, 0xf1, 0x0f, 0x39, 0x72, 0xe2, 0x8c, 0xf2, 0x4b, 0x50,
-	0x76, 0xd7, 0xb1, 0xdb, 0x02, 0x42, 0xbd, 0xcd, 0xbe, 0x99, 0x79, 0xef, 0xf9, 0x8d, 0x0c, 0x0f,
-	0xd2, 0xb2, 0x58, 0x34, 0xc7, 0x8b, 0xa5, 0xcc, 0xe7, 0xa5, 0x92, 0x95, 0x44, 0x7f, 0x53, 0x36,
-	0xc7, 0xd1, 0x7e, 0x2e, 0x73, 0x69, 0xa0, 0xc5, 0xa6, 0xb2, 0x5d, 0xfa, 0x19, 0x7c, 0x26, 0x32,
-	0xa9, 0x38, 0xee, 0xc3, 0xbd, 0x26, 0x5d, 0xd6, 0x22, 0x24, 0x31, 0x49, 0x76, 0x99, 0x7d, 0xe0,
-	0x01, 0xf8, 0xf2, 0xf2, 0x52, 0x8b, 0x2a, 0xf4, 0x62, 0x92, 0x0c, 0x99, 0x7b, 0x21, 0xc2, 0xb0,
-	0x12, 0x6a, 0x15, 0x0e, 0x0c, 0x6a, 0x6a, 0x83, 0x7d, 0x2b, 0x45, 0x38, 0x8c, 0x49, 0x32, 0x65,
-	0xa6, 0xa6, 0x2f, 0x20, 0x38, 0x53, 0x92, 0xd7, 0x99, 0x60, 0xe2, 0x6b, 0x2d, 0x74, 0x85, 0x4f,
-	0xc1, 0x57, 0x46, 0xd1, 0x08, 0xdd, 0x3f, 0x09, 0xe6, 0xd6, 0xe0, 0xdc, 0xfa, 0x60, 0xae, 0x4b,
-	0x9f, 0xc1, 0xde, 0x76, 0x53, 0x97, 0xf2, 0x4a, 0xf7, 0xcd, 0x90, 0xbe, 0x19, 0x9a, 0x40, 0xf0,
-	0x4e, 0x5e, 0xe9, 0x7a, 0xb5, 0x15, 0xf9, 0xdb, 0xe4, 0x4b, 0xd8, 0xdb, 0x4e, 0x3a, 0xd2, 0xce,
-	0x8f, 0xf7, 0x4f, 0x3f, 0x8f, 0xe0, 0xe1, 0x27, 0x51, 0x9d, 0x0b, 0xd5, 0x08, 0xa5, 0x9d, 0x0e,
-	0x7d, 0x0d, 0xd8, 0x07, 0x1d, 0x65, 0x02, 0x23, 0x6d, 0xa1, 0x90, 0xc4, 0x83, 0x3e, 0xa7, 0x9d,
-	0x64, 0x6d, 0x9b, 0x9e, 0x81, 0x6f, 0x21, 0x0c, 0xc0, 0x2b, 0x6c, 0x24, 0x13, 0xe6, 0x15, 0x1c,
-	0x0f, 0x61, 0xac, 0xca, 0xec, 0x22, 0xe5, 0x5c, 0x19, 0x63, 0x13, 0x36, 0x52, 0x65, 0xf6, 0x86,
-	0x73, 0x85, 0x4f, 0x60, 0x52, 0xe8, 0x8b, 0xa5, 0x48, 0xb9, 0x50, 0xe6, 0x00, 0x63, 0x36, 0x2e,
-	0xf4, 0xa9, 0x79, 0x9f, 0xfc, 0xf4, 0x60, 0x70, 0x2a, 0x73, 0x7c, 0x05, 0x23, 0x17, 0x1f, 0x1e,
-	0xb4, 0xea, 0xd7, 0x2f, 0x11, 0x3d, 0xbe, 0x85, 0x5b, 0xff, 0x74, 0x67, 0xb3, 0xed, 0x72, 0xea,
-	0xb6, 0xaf, 0x47, 0xdc, 0x6d, 0xdf, 0x08, 0x94, 0xee, 0xe0, 0x7b, 0x98, 0x3a, 0xf0, 0xbc, 0x52,
-	0x22, 0x5d, 0xdd, 0x81, 0xe3, 0x88, 0xe0, 0x47, 0x98, 0x3a, 0x63, 0x37, 0x59, 0xfe, 0xfb, 0x3b,
-	0x12, 0x72, 0x44, 0xf0, 0x03, 0x40, 0x77, 0x23, 0x3c, 0x6c, 0x87, 0x6f, 0x1d, 0x33, 0x8a, 0xfe,
-	0xd4, 0x6a, 0xa9, 0xde, 0xee, 0x7e, 0x5f, 0xcf, 0xc8, 0x8f, 0xf5, 0x8c, 0xfc, 0x5a, 0xcf, 0xc8,
-	0x17, 0xdf, 0xfc, 0x3e, 0xcf, 0x7f, 0x07, 0x00, 0x00, 0xff, 0xff, 0x57, 0x44, 0xce, 0x65, 0x70,
-	0x03, 0x00, 0x00,
+	// 499 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x54, 0x4f, 0x6f, 0xd3, 0x4e,
+	0x10, 0xed, 0x3a, 0xf9, 0x39, 0xc9, 0xa4, 0x49, 0x7f, 0xdd, 0x54, 0xc5, 0x75, 0xa5, 0x28, 0x5a,
+	0x24, 0x64, 0x38, 0x24, 0x6d, 0x10, 0x12, 0x48, 0x08, 0x09, 0xca, 0x9f, 0x4b, 0x84, 0xaa, 0x2d,
+	0x07, 0x4e, 0x54, 0xc6, 0x9e, 0x5a, 0x96, 0x92, 0xac, 0xd9, 0x75, 0x22, 0xf1, 0x0d, 0x39, 0x72,
+	0xe2, 0x8c, 0xf2, 0x49, 0x50, 0x76, 0xd7, 0xb1, 0xd3, 0x06, 0x84, 0xb8, 0xed, 0xbe, 0x79, 0xf3,
+	0xe6, 0xad, 0xdf, 0xc8, 0xf0, 0x7f, 0x98, 0xa5, 0xa3, 0xe5, 0xf9, 0x68, 0x2a, 0x92, 0x61, 0x26,
+	0x45, 0x2e, 0xa8, 0xbb, 0x3e, 0x2e, 0xcf, 0xfd, 0xa3, 0x44, 0x24, 0x42, 0x43, 0xa3, 0xf5, 0xc9,
+	0x54, 0xd9, 0x27, 0x70, 0x39, 0x46, 0x42, 0xc6, 0xf4, 0x08, 0xfe, 0x5b, 0x86, 0xd3, 0x05, 0x7a,
+	0x64, 0x40, 0x82, 0x7d, 0x6e, 0x2e, 0xf4, 0x18, 0x5c, 0x71, 0x73, 0xa3, 0x30, 0xf7, 0x9c, 0x01,
+	0x09, 0xea, 0xdc, 0xde, 0x28, 0x85, 0x7a, 0x8e, 0x72, 0xe6, 0xd5, 0x34, 0xaa, 0xcf, 0x1a, 0xfb,
+	0x9a, 0xa1, 0x57, 0x1f, 0x90, 0xa0, 0xc3, 0xf5, 0x99, 0x3d, 0x85, 0xee, 0xa5, 0x14, 0xf1, 0x22,
+	0x42, 0x8e, 0x5f, 0x16, 0xa8, 0x72, 0xfa, 0x00, 0x5c, 0xa9, 0x27, 0xea, 0x41, 0xed, 0x71, 0x77,
+	0x68, 0x0c, 0x0e, 0x8d, 0x0f, 0x6e, 0xab, 0xec, 0x21, 0x1c, 0x6c, 0x3a, 0x55, 0x26, 0xe6, 0xaa,
+	0x6a, 0x86, 0x54, 0xcd, 0xb0, 0x00, 0xba, 0x17, 0x62, 0xae, 0x16, 0xb3, 0xcd, 0x90, 0xdf, 0x31,
+	0x9f, 0xc1, 0xc1, 0x86, 0x69, 0x45, 0x4b, 0x3f, 0xce, 0x1f, 0xfd, 0xf4, 0xe0, 0xf0, 0x1d, 0xe6,
+	0x57, 0x28, 0x97, 0x28, 0x95, 0x9d, 0xc3, 0x5e, 0x00, 0xad, 0x82, 0x56, 0x32, 0x80, 0x86, 0x32,
+	0x90, 0x47, 0x06, 0xb5, 0xaa, 0xa6, 0x61, 0xf2, 0xa2, 0xcc, 0x2e, 0xc1, 0x35, 0x10, 0xed, 0x82,
+	0x93, 0x9a, 0x4f, 0xd2, 0xe2, 0x4e, 0x1a, 0xd3, 0x13, 0x68, 0xca, 0x2c, 0xba, 0x0e, 0xe3, 0x58,
+	0x6a, 0x63, 0x2d, 0xde, 0x90, 0x59, 0xf4, 0x32, 0x8e, 0x25, 0x3d, 0x85, 0x56, 0xaa, 0xae, 0xa7,
+	0x18, 0xc6, 0x28, 0x75, 0x00, 0x4d, 0xde, 0x4c, 0xd5, 0x44, 0xdf, 0xd9, 0x7d, 0x68, 0x7f, 0x90,
+	0xe1, 0x5c, 0x85, 0x51, 0x9e, 0x8a, 0xf9, 0x76, 0xaa, 0xc4, 0xa6, 0xca, 0x1e, 0x01, 0xad, 0x90,
+	0x8a, 0x8f, 0xb6, 0x9b, 0x3b, 0x81, 0xde, 0x16, 0xd7, 0xbe, 0xf1, 0x09, 0xb4, 0xf3, 0x12, 0xb6,
+	0x59, 0xf6, 0x8a, 0x77, 0x56, 0x3b, 0xaa, 0xbc, 0xf1, 0x0f, 0x07, 0x6a, 0x13, 0x91, 0xd0, 0xe7,
+	0xd0, 0xb0, 0xe9, 0xd2, 0xe3, 0xa2, 0x69, 0x7b, 0x51, 0xfc, 0x7b, 0x77, 0x70, 0x33, 0x9a, 0xed,
+	0xad, 0xbb, 0x6d, 0x8c, 0x65, 0xf7, 0xf6, 0x06, 0x94, 0xdd, 0xb7, 0xf2, 0x66, 0x7b, 0xf4, 0x35,
+	0x74, 0x2c, 0x78, 0x95, 0x4b, 0x0c, 0x67, 0xff, 0xa0, 0x71, 0x46, 0xe8, 0x5b, 0xe8, 0x58, 0x63,
+	0xb7, 0x55, 0xfe, 0xfa, 0x1d, 0x01, 0x39, 0x23, 0xf4, 0x0d, 0x40, 0xb9, 0x42, 0xf4, 0xa4, 0x20,
+	0xdf, 0xd9, 0x35, 0xdf, 0xdf, 0x55, 0x2a, 0xa4, 0xc6, 0x1f, 0xc1, 0x9d, 0x60, 0x9c, 0xa0, 0xa4,
+	0xef, 0xe1, 0xf0, 0x42, 0x62, 0x98, 0x63, 0x75, 0x0f, 0xfc, 0x5d, 0xc9, 0x58, 0xe1, 0xd3, 0x9d,
+	0xb5, 0x42, 0xf9, 0xd5, 0xfe, 0xb7, 0x55, 0x9f, 0x7c, 0x5f, 0xf5, 0xc9, 0xcf, 0x55, 0x9f, 0x7c,
+	0x76, 0xf5, 0x7f, 0xe3, 0xf1, 0xaf, 0x00, 0x00, 0x00, 0xff, 0xff, 0x68, 0x5a, 0x51, 0x1e, 0x69,
+	0x04, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -768,6 +918,78 @@ var _Log_serviceDesc = grpc.ServiceDesc{
 			ClientStreams: true,
 		},
 	},
+	Metadata: "api/v1/log.proto",
+}
+
+// LedgerClient is the client API for Ledger service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
+type LedgerClient interface {
+	CreateTransaction(ctx context.Context, in *TransactionRequest, opts ...grpc.CallOption) (*TransactionResponse, error)
+}
+
+type ledgerClient struct {
+	cc *grpc.ClientConn
+}
+
+func NewLedgerClient(cc *grpc.ClientConn) LedgerClient {
+	return &ledgerClient{cc}
+}
+
+func (c *ledgerClient) CreateTransaction(ctx context.Context, in *TransactionRequest, opts ...grpc.CallOption) (*TransactionResponse, error) {
+	out := new(TransactionResponse)
+	err := c.cc.Invoke(ctx, "/log.v1.Ledger/CreateTransaction", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// LedgerServer is the server API for Ledger service.
+type LedgerServer interface {
+	CreateTransaction(context.Context, *TransactionRequest) (*TransactionResponse, error)
+}
+
+// UnimplementedLedgerServer can be embedded to have forward compatible implementations.
+type UnimplementedLedgerServer struct {
+}
+
+func (*UnimplementedLedgerServer) CreateTransaction(ctx context.Context, req *TransactionRequest) (*TransactionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateTransaction not implemented")
+}
+
+func RegisterLedgerServer(s *grpc.Server, srv LedgerServer) {
+	s.RegisterService(&_Ledger_serviceDesc, srv)
+}
+
+func _Ledger_CreateTransaction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TransactionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LedgerServer).CreateTransaction(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/log.v1.Ledger/CreateTransaction",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LedgerServer).CreateTransaction(ctx, req.(*TransactionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+var _Ledger_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "log.v1.Ledger",
+	HandlerType: (*LedgerServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "CreateTransaction",
+			Handler:    _Ledger_CreateTransaction_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
 	Metadata: "api/v1/log.proto",
 }
 
@@ -1081,6 +1303,111 @@ func (m *Server) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
+func (m *Transaction) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *Transaction) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Transaction) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	if m.Value != 0 {
+		i -= 8
+		encoding_binary.LittleEndian.PutUint64(dAtA[i:], uint64(math.Float64bits(float64(m.Value))))
+		i--
+		dAtA[i] = 0x9
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *TransactionRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *TransactionRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *TransactionRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	if m.Value != 0 {
+		i -= 8
+		encoding_binary.LittleEndian.PutUint64(dAtA[i:], uint64(math.Float64bits(float64(m.Value))))
+		i--
+		dAtA[i] = 0x9
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *TransactionResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *TransactionResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *TransactionResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	if m.Transaction != nil {
+		{
+			size, err := m.Transaction.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintLog(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
 func encodeVarintLog(dAtA []byte, offset int, v uint64) int {
 	offset -= sovLog(v)
 	base := offset
@@ -1225,6 +1552,52 @@ func (m *Server) Size() (n int) {
 	}
 	if m.IsLeader {
 		n += 2
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *Transaction) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Value != 0 {
+		n += 9
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *TransactionRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Value != 0 {
+		n += 9
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *TransactionResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Transaction != nil {
+		l = m.Transaction.Size()
+		n += 1 + l + sovLog(uint64(l))
 	}
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
@@ -1964,6 +2337,226 @@ func (m *Server) Unmarshal(dAtA []byte) error {
 				}
 			}
 			m.IsLeader = bool(v != 0)
+		default:
+			iNdEx = preIndex
+			skippy, err := skipLog(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthLog
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthLog
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *Transaction) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowLog
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: Transaction: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: Transaction: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 1 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Value", wireType)
+			}
+			var v uint64
+			if (iNdEx + 8) > l {
+				return io.ErrUnexpectedEOF
+			}
+			v = uint64(encoding_binary.LittleEndian.Uint64(dAtA[iNdEx:]))
+			iNdEx += 8
+			m.Value = float64(math.Float64frombits(v))
+		default:
+			iNdEx = preIndex
+			skippy, err := skipLog(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthLog
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthLog
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *TransactionRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowLog
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: TransactionRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: TransactionRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 1 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Value", wireType)
+			}
+			var v uint64
+			if (iNdEx + 8) > l {
+				return io.ErrUnexpectedEOF
+			}
+			v = uint64(encoding_binary.LittleEndian.Uint64(dAtA[iNdEx:]))
+			iNdEx += 8
+			m.Value = float64(math.Float64frombits(v))
+		default:
+			iNdEx = preIndex
+			skippy, err := skipLog(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthLog
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthLog
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *TransactionResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowLog
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: TransactionResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: TransactionResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Transaction", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowLog
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthLog
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthLog
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Transaction == nil {
+				m.Transaction = &Transaction{}
+			}
+			if err := m.Transaction.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipLog(dAtA[iNdEx:])

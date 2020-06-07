@@ -40,7 +40,6 @@ func TestStore(t *testing.T) {
 	// test invalid read: EOF
 	_, err = s.ReadAt(s.size + 10)
 	require.Equal(t, err, io.EOF)
-
 }
 
 func testAppend(t *testing.T, s *store, numAppends int) {

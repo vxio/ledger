@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/require"
 	"github.com/travisjeffery/go-dynaport"
 	"google.golang.org/grpc"
@@ -22,6 +23,69 @@ import (
 	"proglog/internal/loadbalance"
 	"proglog/internal/network"
 )
+
+func TestX(t *testing.T) {
+	serverTLSConfig, err := network.SetupTLSConfig(network.TLSConfig{
+		CertFile:      config.ServerCertFile,
+		KeyFile:       config.ServerKeyFile,
+		CAFile:        config.CAFile,
+		Server:        true,
+		ServerAddress: "127.0.0.1",
+	})
+	require.NoError(t, err)
+
+	peerTLSConfig, err := network.SetupTLSConfig(network.TLSConfig{
+		CertFile:      config.RootClientCertFile,
+		KeyFile:       config.RootClientKeyFile,
+		CAFile:        config.CAFile,
+		Server:        false,
+		ServerAddress: "127.0.0.1",
+	})
+	require.NoError(t, err)
+	dataDir, err := ioutil.TempDir("", "test-log")
+	require.NoError(t, err)
+
+	// ports := []int{0, 0}
+	ports := dynaport.Get(2)
+	bindAddr := &net.TCPAddr{IP: []byte{127, 0, 0, 1}, Port: ports[0]}
+
+	agent, err := agent.New(agent.Config{
+		ServerTLSConfig: serverTLSConfig,
+		PeerTLSConfig:   peerTLSConfig,
+		DataDir:         dataDir,
+		BindAddr:        bindAddr,
+		RPCPort:         ports[1],
+		StartJoinAddrs:  []string{},
+		ACLModelFile:    config.ACLModelFile,
+		ACLPolicyFile:   config.ACLPolicyFile,
+		NodeName:        fmt.Sprintf("%d", 0),
+		Bootstrap:       true,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, agent)
+
+	defer func() {
+		_ = agent.Shutdown()
+		require.NoError(t, os.RemoveAll(agent.Config.DataDir))
+	}()
+
+	client := client(t, agent, peerTLSConfig)
+	b, err := proto.Marshal(&api.Transaction{
+		Value: 15.0,
+	})
+	_, err = client.Produce(context.Background(), &api.ProduceRequest{
+		Record: &api.Record{
+			Value: b,
+		},
+	})
+	require.NoError(t, err)
+
+	res, err := client.Consume(context.Background(), &api.ConsumeRequest{
+		Offset: 0,
+	})
+	require.NoError(t, err)
+	require.Equal(t, b, res.Record.Value)
+}
 
 func TestAgent(t *testing.T) {
 	var agents []*agent.Agent

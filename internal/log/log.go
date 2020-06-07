@@ -35,12 +35,14 @@ func NewLog(dir string, c Config) (*Log, error) {
 		Config: c,
 	}
 
+	// load existing log files if they exist
 	files, err := ioutil.ReadDir(dir)
 	if err != nil {
 		return nil, err
 	}
 	var baseOffsets []uint64
 	for _, file := range files {
+		// get the
 		offStr := strings.TrimSuffix(file.Name(), path.Ext(file.Name()))
 		off, _ := strconv.ParseUint(offStr, 10, 0)
 		baseOffsets = append(baseOffsets, off)

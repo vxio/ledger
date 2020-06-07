@@ -54,5 +54,19 @@ message Server {
   bool is_leader = 3;
 }
 
+message Transaction {
+  double value = 1;
+}
 
+message TransactionRequest {
+  double value = 1;
+}
 
+message TransactionResponse {
+  Transaction transaction = 1;
+}
+
+service Ledger {
+  rpc CreateTransaction(TransactionRequest) returns (TransactionResponse) {}
+  //  rpc ReadTransaction()
+}
