@@ -13,7 +13,7 @@ require (
 	github.com/hashicorp/raft-boltdb v0.0.0-20171010151810-6e5ba93211ea
 	github.com/hashicorp/serf v0.9.2
 	github.com/jinzhu/gorm v1.9.12 // indirect
-	github.com/jmoiron/sqlx v1.2.0
+	github.com/jmoiron/sqlx v1.2.1-0.20200613200327-2cb55b203d94
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/lib/pq v1.7.0
 	github.com/soheilhy/cmux v0.1.4

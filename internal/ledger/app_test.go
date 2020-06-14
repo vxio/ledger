@@ -45,7 +45,7 @@ func TestX(t *testing.T) {
 	logClient := api.NewLogClient(conn)
 
 	ledgerServer, err := ledger.NewServer(&ledger.Config{
-		Repo:      &repo{},
+		// Repo:      &repo{},
 		LogClient: logClient,
 	})
 	require.NoError(t, err)

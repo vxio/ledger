@@ -30,7 +30,7 @@ func configFile(filename string) string {
 	return filepath.Join(homeDir, ".proglog", filename)
 }
 
-func GenerateUUID() string {
+func NewUUID() string {
 	id := uuid.New()
 	return id.String()
 }
