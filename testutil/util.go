@@ -3,6 +3,8 @@ package testutil
 import (
 	"os"
 	"path/filepath"
+
+	"github.com/google/uuid"
 )
 
 var (
@@ -26,4 +28,9 @@ func configFile(filename string) string {
 		panic(err)
 	}
 	return filepath.Join(homeDir, ".proglog", filename)
+}
+
+func GenerateUUID() string {
+	id := uuid.New()
+	return id.String()
 }

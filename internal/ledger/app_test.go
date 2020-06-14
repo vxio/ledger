@@ -82,14 +82,13 @@ func TestX(t *testing.T) {
 			require.EqualValues(t, i, resp.Record.Offset)
 		}
 	}
-
 }
 
 type repo struct {
 	transactions []ledger.Transaction
 }
 
-func (r *repo) Create(transaction ledger.Transaction) error {
-	r.transactions = append(r.transactions, transaction)
+func (r *repo) Create(transaction *ledger.Transaction) error {
+	r.transactions = append(r.transactions, *transaction)
 	return nil
 }

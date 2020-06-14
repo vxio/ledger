@@ -9,14 +9,6 @@ import (
 	api "proglog/api/v1"
 )
 
-type Repo interface {
-	Create(Transaction) error
-}
-
-type Transaction struct {
-	Value int
-}
-
 func NewServer(config *Config, opts ...grpc.ServerOption) (*grpc.Server, error) {
 	grpcServer := grpc.NewServer(opts...)
 
@@ -60,10 +52,10 @@ func (l *LedgerServer) CreateTransaction(ctx context.Context, req *api.Transacti
 		return nil, err
 	}
 
-	transaction := Transaction{Value: int(req.Value)}
+	transaction := Transaction{Amount: int(req.Value)}
 
 	// save to database
-	_ = l.repo.Create(transaction)
+	_ = l.repo.Create(&transaction)
 
 	// return the transaction
 	res := &api.TransactionResponse{
