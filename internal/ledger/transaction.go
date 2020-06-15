@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+
+	"proglog/internal/ledger/options"
 )
 
 const (
@@ -18,47 +20,70 @@ const (
 type Repo interface {
 	Create(*Transaction) error
 	FindById(id string) (*Transaction, error)
-	Find(opts ...TransactionOptions) ([]*Transaction, error)
+	Find(opts ...*options.TransactionOptions) ([]*Transaction, error)
 }
 
-func (r *PostgresRepo) Find(options ...TransactionOptions) ([]*Transaction, error) {
+func (r *PostgresRepo) Find(transactionOptions ...*options.TransactionOptions) ([]*Transaction, error) {
 	var result []*Transaction
+	// build query
+	query := "SELECT * FROM transaction"
 
-	var opt TransactionOptions
-	if len(options) > 0 {
-		opt = options[0]
+	if len(transactionOptions) == 0 { // return all
+		err := r.db.Select(&result, query)
+		if err != nil {
+			return nil, err
+		}
+
+		return result, nil
 	}
 
-	// query := `SELECT * FROM transaction`
+	opt := transactionOptions[0]
 
 	filters := make(map[string]interface{})
 	if len(opt.IDs) > 0 {
 		filters["id"] = opt.IDs
 	}
-	filters["amount"] = []int{100}
-	// filters["id"] = "62059622-316b-4e38-a5b0-c53d4312e00f"
-	// "id":     "62059622-316b-4e38-a5b0-c53d4312e00f",
-	// "amount": 100,
-
-	var args []interface{}
-	var where []string
-	// allowedFilters := []string{"id", "amount"}
-	for filter, arg := range filters { // list of allowed filters
-		// pos := len(args) + 1
-		var stmt string
-		switch arg.(type) {
-		case []string:
-			stmt = fmt.Sprintf("%s in (:%s)", filter, filter)
-		default:
-			stmt = fmt.Sprintf("%s = :%s", filter, filter)
-		}
-
-		where = append(where, stmt)
-		args = append(args, arg)
+	if opt.Amount != nil {
+		filters["amount"] = opt.Amount
 	}
 
-	// build query
-	query := "SELECT * FROM transaction"
+	if opt.Timestamp != nil {
+		filters["timestamp"] = opt.Timestamp
+	}
+
+	var where []string
+	var args []interface{}
+	namedParams := make(map[string]interface{})
+
+	updateQueryParams := func(stmt, key string, value interface{}) {
+		where = append(where, stmt)
+		args = append(args, value)
+		namedParams[key] = value
+	}
+
+	for columnName, arg := range filters {
+		switch v := arg.(type) {
+		case options.Range:
+			var key string
+
+			from, ok := v.From()
+			if ok {
+				key = columnName + "_from"
+				fromStmt := fmt.Sprintf("%s >= :%s", columnName, key)
+				updateQueryParams(fromStmt, key, from)
+			}
+			to, ok := v.To()
+			if ok {
+				key = columnName + "_to"
+				toStmt := fmt.Sprintf("%s <= :%s", columnName, key)
+				updateQueryParams(toStmt, key, to)
+			}
+
+		default:
+			stmt := fmt.Sprintf("%s in (:%s)", columnName, columnName)
+			updateQueryParams(stmt, columnName, v)
+		}
+	}
 
 	if len(where) > 0 {
 		query = fmt.Sprintf("%s WHERE %s",
@@ -67,8 +92,14 @@ func (r *PostgresRepo) Find(options ...TransactionOptions) ([]*Transaction, erro
 		)
 	}
 
-	query, args, err := sqlx.Named(query, filters)
+	query, args, err := sqlx.Named(query, namedParams)
+	if err != nil {
+		return nil, err
+	}
 	query, args, err = sqlx.In(query, args...)
+	if err != nil {
+		return nil, err
+	}
 	query = r.db.Rebind(query)
 	err = r.db.Select(&result, query, args...)
 	if err != nil {
@@ -135,6 +166,9 @@ func (r *PostgresRepo) FindById(id string) (*Transaction, error) {
 
 func (r *PostgresRepo) createTables() error {
 	var err error
+
+	// set default timezone to utc
+	r.db.MustExec("SET timezone to 'UTC'")
 
 	var schema = `
 	CREATE TABLE IF NOT EXISTS transaction (

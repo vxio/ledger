@@ -2,12 +2,14 @@ package ledger
 
 import (
 	"testing"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"proglog/internal/ledger/options"
 	"proglog/testutil"
 )
 
@@ -44,7 +46,7 @@ func (s *Suite) SetupSuite() {
 
 func (s *Suite) SetupTest() {
 	s.db.MustExec("DElETE FROM transaction")
-	s.createTransactions(5)
+	s.createTransactions(10)
 }
 
 func (s *Suite) createTransactions(length int) {
@@ -64,7 +66,6 @@ func (s *Suite) createTransactions(length int) {
 	s.NoError(err)
 
 	query = "SELECT * FROM transaction"
-
 	s.transactions = s.transactions[:0] // clear our in-memory transactions
 	err = s.db.Select(&s.transactions, query)
 	s.NoError(err)
@@ -90,18 +91,107 @@ func (s *Suite) TestFindAll() {
 }
 
 func (s *Suite) TestFindByIds() {
+	var ids []string
+	num := 2
+
+	for i := 0; i < num; i++ {
+		ids = append(ids, s.transactions[i].ID)
+	}
+
+	opts := options.NewTransactionOptions()
+	opts.SetIDs(ids...)
+
+	transactions, err := s.Repo.Find(opts)
+	s.NoError(err)
+
+	s.Equal(s.transactions[:num], transactions)
+}
+
+func (s *Suite) TestFindByAmountRange() {
+	cases := []struct {
+		From *int
+		To   *int
+	}{
+		{Int(200), Int(800)},
+		{nil, Int(300)},
+		{Int(200), nil},
+	}
+	for _, tc := range cases {
+		intRange := &options.IntRange{
+			Low:  tc.From,
+			High: tc.To,
+		}
+
+		opts := options.NewTransactionOptions()
+		opts.SetAmountRange(intRange)
+		got, err := s.Repo.Find(opts)
+		s.NoError(err)
+
+		var want []*Transaction
+		for _, each := range s.transactions {
+			if tc.From != nil && each.Amount < *tc.From {
+				continue
+			}
+			if tc.To != nil && each.Amount > *tc.To {
+				continue
+			}
+
+			want = append(want, each)
+		}
+
+		s.Equal(want, got)
+	}
+}
+
+func (s *Suite) TestFindByTimeRange() {
+	now := time.Now()
+	cases := []struct {
+		From      *time.Time
+		To        *time.Time
+		Timestamp time.Time // for one transaction in our test
+	}{
+		{Time(now.AddDate(0, -1, 0)), Time(now.Add(time.Hour)), now},
+		{Time(now.AddDate(0, 0, 1)), nil, now},
+	}
+	for _, tc := range cases {
+		// update one
+		query := "UPDATE transaction SET timestamp =  now() WHERE id = $1"
+		s.db.MustExec(query, s.transactions[0].ID)
+		// update in-memory
+		query = "SELECT * FROM transaction"
+		s.transactions = s.transactions[:0] // clear our in-memory transactions
+		err := s.db.Select(&s.transactions, query)
+		s.NoError(err)
+
+		timeRange := &options.TimeRange{
+			Low:  tc.From,
+			High: tc.To,
+		}
+
+		opts := options.NewTransactionOptions()
+		opts.SetTimeRange(timeRange)
+		got, err := s.Repo.Find(opts)
+		s.NoError(err)
+
+		var want []*Transaction
+		for _, each := range s.transactions {
+			if each.Timestamp != nil &&
+				tc.From != nil && each.Timestamp.Sub(*tc.From) < 0 &&
+				tc.To != nil && each.Timestamp.Sub(*tc.To) > 0 {
+
+				want = append(want, each)
+			}
+		}
+
+		s.Equal(got, want)
+	}
 
 }
 
-// func TestSome(t *testing.T) {
-// 	transaction := &Transaction{
-// 		FromID: testutil.NewUUID(),
-// 		ToID:   testutil.NewUUID(),
-// 		Amount: 100,
-// 	}
-//
-// 	err = repo.Create(transaction)
-// 	require.NoError(t, err)
-// }
-//
-// func TestFind(t *testing.T)
+func Int(v int) *int {
+	return &v
+}
+
+func Time(v time.Time) *time.Time {
+	return &v
+}
