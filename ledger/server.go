@@ -29,7 +29,7 @@ func NewServer(config *Config, opts ...grpc.ServerOption) (*grpc.Server, error) 
 
 // Config used to create a new Server
 type Config struct {
-	Repo      Repo
+	Repo      TransactionRepo
 	LogClient api.LogClient
 }
 
@@ -40,7 +40,7 @@ type Server struct {
 	// the write-ahead-log used to record transactions
 	logClient api.LogClient
 	// our data-access layer used to store transactions
-	repo Repo
+	repo TransactionRepo
 }
 
 //

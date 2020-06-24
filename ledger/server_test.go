@@ -2,16 +2,15 @@ package ledger_test
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"net"
-	"os"
 	"testing"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
-	"github.com/peterbourgon/ff"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 	"github.com/travisjeffery/go-dynaport"
 	"google.golang.org/grpc"
 
@@ -19,94 +18,126 @@ import (
 	"proglog/internal/log"
 	"proglog/internal/server"
 	"proglog/ledger"
+	"proglog/ledger/postgres"
 )
 
-func TestX(t *testing.T) {
-	postgresFlags := flag.NewFlagSet("postgres", flag.ExitOnError)
-	var (
-		host   = postgresFlags.String("host", "localhost", "host to connect to")
-		port   = postgresFlags.Int("port", 5432, "port to bind to")
-		user   = postgresFlags.String("user", "", "user to sign in as")
-		dbName = postgresFlags.String("db_name", "", "name of the database")
-		_      = postgresFlags.String("test.v", "", "") // ignore flag passed by Intellij
-	)
+func TestServer(t *testing.T) {
+	s := NewSuite(t)
+	suite.Run(t, s)
+}
 
-	require.NoError(t, godotenv.Load("../.env"))
-	require.NoError(t,
-		ff.Parse(postgresFlags, os.Args[1:],
-			ff.WithIgnoreUndefined(true),
-			ff.WithEnvVarPrefix("POSTGRES"),
-		))
+func NewSuite(t *testing.T) *Suite {
+	return &Suite{
+		Assertions: require.New(t),
+	}
+}
 
-	// todo: call table creation
+type Suite struct {
+	suite.Suite
+	*require.Assertions // default to require behavior
+
+	db *sqlx.DB
+
+	// TransactionRepo                ledger.TransactionRepo
+	logServerAddr string
+	logServer     *grpc.Server
+	logClient     api.LogClient
+
+	ledgerServerAddr string
+	ledgerServer     *grpc.Server
+	ledgerClient     api.LedgerClient
+}
+
+func (s *Suite) SetupSuite() {
+	// load environment
+	err := godotenv.Load("../.env")
+	s.NoError(err)
+
+	// setup postgres
+	config, err := postgres.Parse()
+	s.NoError(err)
+
+	db, err := postgres.Connect(config)
+	s.NoError(err)
+	s.db = db
+
+	// setup address ports
 	ports := dynaport.Get(2)
-	ledgerServerAddr := fmt.Sprintf(":%d", ports[0])
-	logServerAddr := fmt.Sprintf(":%d", ports[1])
+	s.ledgerServerAddr = fmt.Sprintf(":%d", ports[0])
+	s.logServerAddr = fmt.Sprintf(":%d", ports[1])
 
 	dir, err := ioutil.TempDir("", "app-test")
-	require.NoError(t, err)
+	s.NoError(err)
 
 	commitLog, err := log.NewLog(dir, log.Config{})
-	require.NoError(t, err)
+	s.NoError(err)
 
+	// create server and client for `log`
 	logServer, err := server.NewGRPCServer(&server.Config{
 		CommitLog:  commitLog,
 		GetSeverer: nil,
 	})
-	require.NoError(t, err)
+	s.NoError(err)
+	s.logServer = logServer
 
+	// serve logServer
 	go func() {
-		ln, err := net.Listen("tcp", logServerAddr)
-		require.NoError(t, err)
-		require.NoError(t, logServer.Serve(ln))
+		ln, err := net.Listen("tcp", s.logServerAddr)
+		s.NoError(err)
+		s.NoError(s.logServer.Serve(ln))
 	}()
 
-	conn, err := grpc.Dial(logServerAddr, grpc.WithInsecure())
-	require.NoError(t, err)
-	logClient := api.NewLogClient(conn)
+	conn, err := grpc.Dial(s.logServerAddr, grpc.WithInsecure())
+	s.NoError(err)
+	s.logClient = api.NewLogClient(conn)
 
-	db, err := ledger.ConnectPostgresDB(*host, *port, *user, *dbName)
-	require.NoError(t, err)
-	repo, err := ledger.NewPostgresRepo(db)
-	require.NoError(t, err)
-
+	repo, err := ledger.NewPostgresRepo(s.db)
+	s.NoError(err)
+	// create server and client for `ledger`
 	ledgerServer, err := ledger.NewServer(&ledger.Config{
 		Repo:      repo,
-		LogClient: logClient,
+		LogClient: s.logClient,
 	})
-	require.NoError(t, err)
+	s.NoError(err)
+	s.ledgerServer = ledgerServer
 
+	// serve ledgerServer
 	go func() {
-		ln, err := net.Listen("tcp", ledgerServerAddr)
-		require.NoError(t, err)
+		ln, err := net.Listen("tcp", s.ledgerServerAddr)
+		s.NoError(err)
 
-		require.NoError(t,
-			ledgerServer.Serve(ln))
+		s.NoError(s.ledgerServer.Serve(ln))
 	}()
 
 	// create ledger client
 	opts := []grpc.DialOption{grpc.WithInsecure()}
-	conn, err = grpc.Dial(ledgerServerAddr, opts...)
-	require.NoError(t, err)
+	conn, err = grpc.Dial(s.ledgerServerAddr, opts...)
+	s.NoError(err)
 
-	ledgerClient := api.NewLedgerClient(conn)
+	s.ledgerClient = api.NewLedgerClient(conn)
+}
+
+func (s *Suite) SetupTest() {
+	s.db.MustExec("DElETE FROM transaction")
+}
+
+func (s *Suite) TestCreateTransactions() {
 	numTransactions := 5
 	for i := 0; i < numTransactions; i++ {
 		ctx := context.Background()
 		{
 			amount := fmt.Sprintf("%d", 100*i)
-			resp, err := ledgerClient.CreateTransaction(ctx, &api.TransactionRequest{
+			resp, err := s.ledgerClient.CreateTransaction(ctx, &api.TransactionRequest{
 				Amount: &api.BigDecimal{Value: amount},
 			})
-			require.NoError(t, err)
-			require.NotNil(t, resp)
+			s.NoError(err)
+			s.NotNil(resp)
 		}
 
-		{
-			// check log
-			resp, err := logClient.Consume(ctx, &api.ConsumeRequest{Offset: uint64(i)})
-			require.NoError(t, err)
-			require.EqualValues(t, i, resp.Record.Offset)
+		{ // Check log
+			resp, err := s.logClient.Consume(ctx, &api.ConsumeRequest{Offset: uint64(i)})
+			s.NoError(err)
+			s.EqualValues(i, resp.Record.Offset)
 		}
 	}
 }

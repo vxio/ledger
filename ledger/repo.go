@@ -9,72 +9,26 @@ import (
 	"proglog/ledger/options"
 )
 
-// const (
-// 	host    = "localhost"
-// 	port    = 5432
-// 	user    = "vince"
-// 	db_name = "transactions_dev"
-// )
-
-// Repo is a data access layer abstraction that describes the set of operations a data store must implement
-type Repo interface {
+// TransactionRepo is a data access layer abstraction that describes the set of operations a data store must implement
+type TransactionRepo interface {
 	Create(*Transaction) error
 	FindById(id string) (*Transaction, error)
 	Find(opts ...*options.TransactionOptions) ([]*Transaction, error)
 }
 
-var _ Repo = (*PostgresRepo)(nil)
+var _ TransactionRepo = (*PostgresTransactionRepo)(nil)
 
-type PostgresRepo struct {
+type PostgresTransactionRepo struct {
 	db *sqlx.DB
 }
 
-// connect to Postgres and return a database handle representing a pool of connections
-func ConnectPostgresDB(host string, port int, user string, dbName string) (*sqlx.DB, error) {
-	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s dbname=%s sslmode=disable",
-		host,
-		port,
-		user,
-		dbName,
-	)
-
-	db, err := sqlx.Connect("postgres", psqlInfo)
-	if err != nil {
-		return nil, fmt.Errorf("connecting to postgres: %v", err)
-	}
-
-	return db, nil
-}
-
-func NewPostgresRepo(db *sqlx.DB) (*PostgresRepo, error) {
-	r := &PostgresRepo{db: db}
-
-	err := r.init()
-	if err != nil {
-		return nil, err
-	}
+func NewPostgresRepo(db *sqlx.DB) (*PostgresTransactionRepo, error) {
+	r := &PostgresTransactionRepo{db: db}
 
 	return r, nil
 }
 
-// configures the database settings
-func (r *PostgresRepo) init() error {
-	// install extension for creating UUIDs
-	_, err := r.db.Exec("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\"")
-	if err != nil {
-		return err
-	}
-
-	// set default timezone to UTC
-	_, err = r.db.Exec("SET timezone to 'UTC'")
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (r *PostgresRepo) Create(t *Transaction) error {
+func (r *PostgresTransactionRepo) Create(t *Transaction) error {
 	_, err := r.db.NamedQuery(
 		`INSERT INTO transaction (sender_id, receiver_id, amount, created_at) VALUES (:sender_id, :receiver_id, 
 		:amount, 
@@ -85,7 +39,7 @@ func (r *PostgresRepo) Create(t *Transaction) error {
 	return err
 }
 
-func (r *PostgresRepo) FindById(id string) (*Transaction, error) {
+func (r *PostgresTransactionRepo) FindById(id string) (*Transaction, error) {
 	var result Transaction
 	err := r.db.Get(&result, "SELECT * FROM transaction WHERE id = $1", id)
 	if err != nil {
@@ -97,7 +51,7 @@ func (r *PostgresRepo) FindById(id string) (*Transaction, error) {
 
 // Executes a Find operation and returns a list of Transactions
 // The `transactionOptions` can be used to specify options for the operation
-func (r *PostgresRepo) Find(transactionOptions ...*options.TransactionOptions) ([]*Transaction, error) {
+func (r *PostgresTransactionRepo) Find(transactionOptions ...*options.TransactionOptions) ([]*Transaction, error) {
 	var result []*Transaction
 	// build query
 	query := "SELECT * FROM transaction"
@@ -181,25 +135,4 @@ func (r *PostgresRepo) Find(transactionOptions ...*options.TransactionOptions) (
 	}
 
 	return result, nil
-}
-
-func (r *PostgresRepo) createTables() error {
-	var err error
-
-	r.db.MustExec("DROP TABLE transaction")
-
-	var schema = `
-	CREATE TABLE IF NOT EXISTS transaction (
-	id uuid DEFAULT uuid_generate_v4() PRIMARY KEY ,
-	sender_id uuid NOT NULL,
-	receiver_id uuid NOT NULL,
-	amount  NUMERIC(12, 4) DEFAULT 0 NOT NULL,
-	created_at timestamp DEFAULT now()
-	                         )
-	`
-	_, err = r.db.Exec(schema)
-	if err != nil {
-		return err
-	}
-	return nil
 }

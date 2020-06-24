@@ -7,15 +7,17 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"proglog/ledger/options"
+	"proglog/ledger/postgres"
 )
 
-func Test(t *testing.T) {
+func TestTransactionRepo(t *testing.T) {
 	s := NewSuite(t)
 	suite.Run(t, s)
 }
@@ -29,21 +31,27 @@ func NewSuite(t *testing.T) *Suite {
 type Suite struct {
 	suite.Suite
 	*require.Assertions // default to require behavior
-	Repo                Repo
+	repo                TransactionRepo
 	db                  *sqlx.DB
 	transactions        []*Transaction
 }
 
 func (s *Suite) SetupSuite() {
-	db, err := ConnectPostgresDB("", 0, "", "")
+	// load environment
+	err := godotenv.Load("../.env")
+	s.NoError(err)
+
+	config, err := postgres.Parse()
+	s.NoError(err)
+
+	db, err := postgres.Connect(config)
 	s.NoError(err)
 	s.db = db
 
 	repo, err := NewPostgresRepo(db)
 	s.NoError(err)
-	s.Repo = repo
 
-	s.NoError(repo.createTables())
+	s.repo = repo
 }
 
 func (s *Suite) SetupTest() {
@@ -76,14 +84,14 @@ func (s *Suite) TeardownSuite() {
 
 func (s *Suite) TestFindById() {
 	want := s.transactions[1]
-	got, err := s.Repo.FindById(want.ID)
+	got, err := s.repo.FindById(want.ID)
 	s.NoError(err)
 
 	s.Equal(want, got)
 }
 
 func (s *Suite) TestFindAll() {
-	got, err := s.Repo.Find()
+	got, err := s.repo.Find()
 	s.NoError(err)
 
 	s.Equal(got, s.transactions)
@@ -100,7 +108,7 @@ func (s *Suite) TestFindByIds() {
 	opts := options.NewTransactionOptions()
 	opts.SetIDs(ids...)
 
-	transactions, err := s.Repo.Find(opts)
+	transactions, err := s.repo.Find(opts)
 	s.NoError(err)
 
 	s.Equal(s.transactions[:num], transactions)
@@ -126,7 +134,7 @@ func (s *Suite) TestFindByAmountRange() {
 
 		opts := options.NewTransactionOptions()
 		opts.SetAmountRange(intRange)
-		got, err := s.Repo.Find(opts)
+		got, err := s.repo.Find(opts)
 		s.NoError(err)
 
 		var want []*Transaction
@@ -168,7 +176,7 @@ func (s *Suite) TestFindByTimeRange() {
 
 		opts := options.NewTransactionOptions()
 		opts.SetTimeRange(timeRange)
-		got, err := s.Repo.Find(opts)
+		got, err := s.repo.Find(opts)
 		s.NoError(err)
 
 		var want []*Transaction
@@ -184,10 +192,6 @@ func (s *Suite) TestFindByTimeRange() {
 		s.Equal(got, want)
 	}
 
-}
-
-func Int(v int) *int {
-	return &v
 }
 
 func Time(v time.Time) *time.Time {
