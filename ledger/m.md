@@ -30,7 +30,7 @@ goals:
 - duplicate messages (what if the same record is sent to the log twice?)
 
 ## Operations
-- our app gets a transaction request
+- our app gets a transaction request (not going to build)
 - send to our distributed log (agent)
 - agent receives the record and persists it
 - our application get a ProduceResponse from the log

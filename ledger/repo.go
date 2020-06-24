@@ -3,26 +3,100 @@ package ledger
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/jmoiron/sqlx"
 
-	"proglog/internal/ledger/options"
+	"proglog/ledger/options"
 )
 
-const (
-	host    = "localhost"
-	port    = 5432
-	user    = "vince"
-	db_name = "transactions_dev"
-)
+// const (
+// 	host    = "localhost"
+// 	port    = 5432
+// 	user    = "vince"
+// 	db_name = "transactions_dev"
+// )
 
+// Repo is a data access layer abstraction that describes the set of operations a data store must implement
 type Repo interface {
 	Create(*Transaction) error
 	FindById(id string) (*Transaction, error)
 	Find(opts ...*options.TransactionOptions) ([]*Transaction, error)
 }
 
+var _ Repo = (*PostgresRepo)(nil)
+
+type PostgresRepo struct {
+	db *sqlx.DB
+}
+
+// connect to Postgres and return a database handle representing a pool of connections
+func ConnectPostgresDB(host string, port int, user string, dbName string) (*sqlx.DB, error) {
+	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s dbname=%s sslmode=disable",
+		host,
+		port,
+		user,
+		dbName,
+	)
+
+	db, err := sqlx.Connect("postgres", psqlInfo)
+	if err != nil {
+		return nil, fmt.Errorf("connecting to postgres: %v", err)
+	}
+
+	return db, nil
+}
+
+func NewPostgresRepo(db *sqlx.DB) (*PostgresRepo, error) {
+	r := &PostgresRepo{db: db}
+
+	err := r.init()
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}
+
+// configures the database settings
+func (r *PostgresRepo) init() error {
+	// install extension for creating UUIDs
+	_, err := r.db.Exec("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\"")
+	if err != nil {
+		return err
+	}
+
+	// set default timezone to UTC
+	_, err = r.db.Exec("SET timezone to 'UTC'")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *PostgresRepo) Create(t *Transaction) error {
+	_, err := r.db.NamedQuery(
+		`INSERT INTO transaction (sender_id, receiver_id, amount, created_at) VALUES (:sender_id, :receiver_id, 
+		:amount, 
+		:created_at)`,
+		t,
+	)
+
+	return err
+}
+
+func (r *PostgresRepo) FindById(id string) (*Transaction, error) {
+	var result Transaction
+	err := r.db.Get(&result, "SELECT * FROM transaction WHERE id = $1", id)
+	if err != nil {
+		return nil, err
+	}
+
+	return &result, nil
+}
+
+// Executes a Find operation and returns a list of Transactions
+// The `transactionOptions` can be used to specify options for the operation
 func (r *PostgresRepo) Find(transactionOptions ...*options.TransactionOptions) ([]*Transaction, error) {
 	var result []*Transaction
 	// build query
@@ -48,7 +122,7 @@ func (r *PostgresRepo) Find(transactionOptions ...*options.TransactionOptions) (
 	}
 
 	if opt.Timestamp != nil {
-		filters["timestamp"] = opt.Timestamp
+		filters["created_at"] = opt.Timestamp
 	}
 
 	var where []string
@@ -109,76 +183,18 @@ func (r *PostgresRepo) Find(transactionOptions ...*options.TransactionOptions) (
 	return result, nil
 }
 
-var _ Repo = (*PostgresRepo)(nil)
-
-type PostgresRepo struct {
-	db *sqlx.DB
-}
-
-func GetPostgresDB() (*sqlx.DB, error) {
-	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s dbname=%s sslmode=disable",
-		host,
-		port,
-		user,
-		db_name,
-	)
-
-	db, err := sqlx.Connect("postgres", psqlInfo)
-	if err != nil {
-		return nil, fmt.Errorf("connecting to postgres: %v", err)
-	}
-
-	return db, nil
-}
-
-func NewPostgresRepo(db *sqlx.DB) (*PostgresRepo, error) {
-	return &PostgresRepo{db: db}, nil
-}
-
-func (r *PostgresRepo) Init() error {
-	_, err := r.db.Exec("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\"")
-
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (r *PostgresRepo) Create(v *Transaction) error {
-	_, err := r.db.NamedQuery(
-		`INSERT INTO transaction (from_id, to_id, amount, timestamp) VALUES (:from_id, :to_id, :amount, :timestamp)`,
-		v,
-	)
-
-	return err
-}
-
-func (r *PostgresRepo) FindById(id string) (*Transaction, error) {
-	var result Transaction
-	err := r.db.Get(&result, "SELECT * FROM transaction WHERE id = $1", id)
-	if err != nil {
-		return nil, err
-	}
-
-	return &result, nil
-}
-
 func (r *PostgresRepo) createTables() error {
 	var err error
 
-	// set default timezone to utc
-	r.db.MustExec("SET timezone to 'UTC'")
+	r.db.MustExec("DROP TABLE transaction")
 
 	var schema = `
 	CREATE TABLE IF NOT EXISTS transaction (
-	id uuid DEFAULT uuid_generate_v4(),
-	from_id uuid NOT NULL,
-	to_id uuid NOT NULL,
-	amount integer NOT NULL,
-	timestamp timestamp,
-	
-	 PRIMARY KEY (id)
+	id uuid DEFAULT uuid_generate_v4() PRIMARY KEY ,
+	sender_id uuid NOT NULL,
+	receiver_id uuid NOT NULL,
+	amount  NUMERIC(12, 4) DEFAULT 0 NOT NULL,
+	created_at timestamp DEFAULT now()
 	                         )
 	`
 	_, err = r.db.Exec(schema)
@@ -186,12 +202,4 @@ func (r *PostgresRepo) createTables() error {
 		return err
 	}
 	return nil
-}
-
-type Transaction struct {
-	ID        string     `db:"id"` // unique id
-	FromID    string     `db:"from_id"`
-	ToID      string     `db:"to_id"`
-	Amount    int        `db:"amount"`
-	Timestamp *time.Time `db:"timestamp"`
 }

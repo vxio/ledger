@@ -2,22 +2,43 @@ package ledger_test
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"net"
+	"os"
 	"testing"
 
+	"github.com/joho/godotenv"
+	"github.com/peterbourgon/ff"
 	"github.com/stretchr/testify/require"
 	"github.com/travisjeffery/go-dynaport"
 	"google.golang.org/grpc"
 
 	api "proglog/api/v1"
-	"proglog/internal/ledger"
 	"proglog/internal/log"
 	"proglog/internal/server"
+	"proglog/ledger"
 )
 
 func TestX(t *testing.T) {
+	postgresFlags := flag.NewFlagSet("postgres", flag.ExitOnError)
+	var (
+		host   = postgresFlags.String("host", "localhost", "host to connect to")
+		port   = postgresFlags.Int("port", 5432, "port to bind to")
+		user   = postgresFlags.String("user", "", "user to sign in as")
+		dbName = postgresFlags.String("db_name", "", "name of the database")
+		_      = postgresFlags.String("test.v", "", "") // ignore flag passed by Intellij
+	)
+
+	require.NoError(t, godotenv.Load("../.env"))
+	require.NoError(t,
+		ff.Parse(postgresFlags, os.Args[1:],
+			ff.WithIgnoreUndefined(true),
+			ff.WithEnvVarPrefix("POSTGRES"),
+		))
+
+	// todo: call table creation
 	ports := dynaport.Get(2)
 	ledgerServerAddr := fmt.Sprintf(":%d", ports[0])
 	logServerAddr := fmt.Sprintf(":%d", ports[1])
@@ -44,8 +65,13 @@ func TestX(t *testing.T) {
 	require.NoError(t, err)
 	logClient := api.NewLogClient(conn)
 
+	db, err := ledger.ConnectPostgresDB(*host, *port, *user, *dbName)
+	require.NoError(t, err)
+	repo, err := ledger.NewPostgresRepo(db)
+	require.NoError(t, err)
+
 	ledgerServer, err := ledger.NewServer(&ledger.Config{
-		// Repo:      &repo{},
+		Repo:      repo,
 		LogClient: logClient,
 	})
 	require.NoError(t, err)
@@ -68,8 +94,9 @@ func TestX(t *testing.T) {
 	for i := 0; i < numTransactions; i++ {
 		ctx := context.Background()
 		{
+			amount := fmt.Sprintf("%d", 100*i)
 			resp, err := ledgerClient.CreateTransaction(ctx, &api.TransactionRequest{
-				Value: float64(i),
+				Amount: &api.BigDecimal{Value: amount},
 			})
 			require.NoError(t, err)
 			require.NotNil(t, resp)
@@ -82,13 +109,4 @@ func TestX(t *testing.T) {
 			require.EqualValues(t, i, resp.Record.Offset)
 		}
 	}
-}
-
-type repo struct {
-	transactions []ledger.Transaction
-}
-
-func (r *repo) Create(transaction *ledger.Transaction) error {
-	r.transactions = append(r.transactions, *transaction)
-	return nil
 }

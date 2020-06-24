@@ -5,6 +5,7 @@ go 1.13
 require (
 	github.com/casbin/casbin v1.9.1
 	github.com/gogo/protobuf v1.3.1
+	github.com/golang/protobuf v1.3.3
 	github.com/google/uuid v1.1.1
 	github.com/gorilla/mux v1.7.4 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.2.0
@@ -14,8 +15,11 @@ require (
 	github.com/hashicorp/serf v0.9.2
 	github.com/jinzhu/gorm v1.9.12 // indirect
 	github.com/jmoiron/sqlx v1.2.1-0.20200613200327-2cb55b203d94
+	github.com/joho/godotenv v1.3.0
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/lib/pq v1.7.0
+	github.com/peterbourgon/ff v1.6.1-0.20191209132549-c0f66057442b
+	github.com/shopspring/decimal v1.2.0
 	github.com/soheilhy/cmux v0.1.4
 	github.com/stretchr/testify v1.4.0
 	github.com/travisjeffery/go-dynaport v1.0.0

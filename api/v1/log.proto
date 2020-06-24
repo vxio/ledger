@@ -2,6 +2,7 @@ syntax = "proto3";
 package log.v1;
 
 import "gogoproto/gogo.proto";
+import "google/protobuf/timestamp.proto";
 
 option (gogoproto.marshaler_all) = true;
 option (gogoproto.unmarshaler_all) = true;
@@ -55,11 +56,22 @@ message Server {
 }
 
 message Transaction {
-  double value = 1;
+  UUID sender_id = 1;
+  UUID receiver_id = 2;
+  BigDecimal amount = 3;
+  google.protobuf.Timestamp created_at = 4 [(gogoproto.stdtime) = true];
+}
+
+message UUID {
+  string value = 1;
+}
+
+message BigDecimal {
+  string value = 1;
 }
 
 message TransactionRequest {
-  double value = 1;
+  BigDecimal amount = 1;
 }
 
 message TransactionResponse {
@@ -68,5 +80,4 @@ message TransactionResponse {
 
 service Ledger {
   rpc CreateTransaction(TransactionRequest) returns (TransactionResponse) {}
-  //  rpc ReadTransaction()
 }

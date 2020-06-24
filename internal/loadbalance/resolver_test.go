@@ -15,7 +15,7 @@ import (
 	"proglog/internal/loadbalance"
 	"proglog/internal/network"
 	"proglog/internal/server"
-	"proglog/testutil"
+	"proglog/test/testutil"
 )
 
 func TestResolver(t *testing.T) {

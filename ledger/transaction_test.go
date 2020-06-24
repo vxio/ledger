@@ -1,16 +1,18 @@
 package ledger
 
 import (
+	"math"
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"proglog/internal/ledger/options"
-	"proglog/testutil"
+	"proglog/ledger/options"
 )
 
 func Test(t *testing.T) {
@@ -33,7 +35,7 @@ type Suite struct {
 }
 
 func (s *Suite) SetupSuite() {
-	db, err := GetPostgresDB()
+	db, err := ConnectPostgresDB("", 0, "", "")
 	s.NoError(err)
 	s.db = db
 
@@ -54,21 +56,18 @@ func (s *Suite) createTransactions(length int) {
 	for i := 1; i <= length; i++ {
 		rows = append(rows,
 			&Transaction{
-				FromID: testutil.NewUUID(),
-				ToID:   testutil.NewUUID(),
-				Amount: i * 100,
+				SenderID:   uuid.New(),
+				ReceiverID: uuid.New(),
+				Amount:     decimal.NewFromInt32(int32(i * 100)),
 			},
 		)
 	}
 
-	query := "INSERT INTO transaction (from_id, to_id, amount) VALUES (:from_id, :to_id, :amount)"
+	query := "INSERT INTO transaction (sender_id, receiver_id, amount) VALUES (:sender_id, :receiver_id, :amount)"
 	_, err := s.db.NamedExec(query, rows)
 	s.NoError(err)
 
-	query = "SELECT * FROM transaction"
-	s.transactions = s.transactions[:0] // clear our in-memory transactions
-	err = s.db.Select(&s.transactions, query)
-	s.NoError(err)
+	s.refreshInMem()
 }
 
 func (s *Suite) TeardownSuite() {
@@ -109,17 +108,20 @@ func (s *Suite) TestFindByIds() {
 
 func (s *Suite) TestFindByAmountRange() {
 	cases := []struct {
-		From *int
-		To   *int
+		From int
+		To   int
 	}{
-		{Int(200), Int(800)},
-		{nil, Int(300)},
-		{Int(200), nil},
+		{200, 800},
+		{0, 300},
+		{400, math.MaxInt32},
 	}
 	for _, tc := range cases {
-		intRange := &options.IntRange{
-			Low:  tc.From,
-			High: tc.To,
+		from := decimal.NewFromInt32(int32(tc.From))
+		to := decimal.NewFromInt32(int32(tc.To))
+
+		intRange := &options.DecimalRange{
+			Low:  &from,
+			High: &to,
 		}
 
 		opts := options.NewTransactionOptions()
@@ -129,17 +131,17 @@ func (s *Suite) TestFindByAmountRange() {
 
 		var want []*Transaction
 		for _, each := range s.transactions {
-			if tc.From != nil && each.Amount < *tc.From {
+			if !from.IsZero() && each.Amount.LessThan(from) {
 				continue
 			}
-			if tc.To != nil && each.Amount > *tc.To {
+			if !to.IsZero() && each.Amount.GreaterThan(to) {
 				continue
 			}
 
 			want = append(want, each)
 		}
 
-		s.Equal(want, got)
+		s.Equal(want, got, "values should range from %s to %s", from.String(), to.String())
 	}
 }
 
@@ -155,13 +157,9 @@ func (s *Suite) TestFindByTimeRange() {
 	}
 	for _, tc := range cases {
 		// update one
-		query := "UPDATE transaction SET timestamp =  now() WHERE id = $1"
+		query := "UPDATE transaction SET created_at =  now() WHERE id = $1"
 		s.db.MustExec(query, s.transactions[0].ID)
-		// update in-memory
-		query = "SELECT * FROM transaction"
-		s.transactions = s.transactions[:0] // clear our in-memory transactions
-		err := s.db.Select(&s.transactions, query)
-		s.NoError(err)
+		s.refreshInMem()
 
 		timeRange := &options.TimeRange{
 			Low:  tc.From,
@@ -175,9 +173,9 @@ func (s *Suite) TestFindByTimeRange() {
 
 		var want []*Transaction
 		for _, each := range s.transactions {
-			if each.Timestamp != nil &&
-				tc.From != nil && each.Timestamp.Sub(*tc.From) < 0 &&
-				tc.To != nil && each.Timestamp.Sub(*tc.To) > 0 {
+			if !each.CreatedAt.IsZero() &&
+				tc.From != nil && each.CreatedAt.Sub(*tc.From) < 0 &&
+				tc.To != nil && each.CreatedAt.Sub(*tc.To) > 0 {
 
 				want = append(want, each)
 			}
@@ -194,4 +192,11 @@ func Int(v int) *int {
 
 func Time(v time.Time) *time.Time {
 	return &v
+}
+
+func (s *Suite) refreshInMem() {
+	query := "SELECT * FROM transaction"
+	s.transactions = s.transactions[:0] // clear our in-memory transactions
+	err := s.db.Select(&s.transactions, query)
+	s.NoError(err)
 }
