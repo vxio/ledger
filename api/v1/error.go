@@ -7,10 +7,12 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// Error returned by the server if the client tries to consume an offset out of the log's range
 type ErrOffsetOutOfRange struct {
 	Offset uint64
 }
 
+// Return a gRPC status for the client
 func (e ErrOffsetOutOfRange) GRPCStatus() *status.Status {
 	st := status.New(404, fmt.Sprintf("offset out of range: %d", e.Offset))
 	msg := fmt.Sprintf(

@@ -7,7 +7,7 @@ Mgogoproto/gogo.proto=github.com/gogo/protobuf/proto,plugins=grpc:. \
 $$(go list -f '{{ .Dir }}' -m github.com/gogo/protobuf) \
 		--proto_path=.
 
-CONFIG_PATH=${HOME}/.proglog/
+CONFIG_PATH=${HOME}/.ledger/
 
 .PHONY: init
 init:

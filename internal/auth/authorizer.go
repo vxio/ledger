@@ -8,6 +8,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// Accepts ACL model and policy files
 func New(model, policy string) *Authorizer {
 	enforcer := casbin.NewEnforcer(model, policy)
 	return &Authorizer{enforcer}

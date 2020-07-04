@@ -1,4 +1,4 @@
-package ledger
+package transaction
 
 import (
 	"fmt"
@@ -6,10 +6,10 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
-	"proglog/ledger/options"
+	"ledger/transaction/options"
 )
 
-// TransactionRepo is a data access layer abstraction that describes the set of operations a data store must implement
+// Data store abstraction for querying transactions
 type TransactionRepo interface {
 	Create(*Transaction) error
 	FindById(id string) (*Transaction, error)
@@ -28,12 +28,12 @@ func NewPostgresRepo(db *sqlx.DB) (*PostgresTransactionRepo, error) {
 	return r, nil
 }
 
-func (r *PostgresTransactionRepo) Create(t *Transaction) error {
+func (r *PostgresTransactionRepo) Create(transaction *Transaction) error {
 	_, err := r.db.NamedQuery(
 		`INSERT INTO transaction (sender_id, receiver_id, amount, created_at) VALUES (:sender_id, :receiver_id, 
 		:amount, 
 		:created_at)`,
-		t,
+		transaction,
 	)
 
 	return err
@@ -56,7 +56,7 @@ func (r *PostgresTransactionRepo) Find(transactionOptions ...*options.Transactio
 	// build query
 	query := "SELECT * FROM transaction"
 
-	if len(transactionOptions) == 0 { // return all
+	if len(transactionOptions) == 0 {
 		err := r.db.Select(&result, query)
 		if err != nil {
 			return nil, err
@@ -66,7 +66,6 @@ func (r *PostgresTransactionRepo) Find(transactionOptions ...*options.Transactio
 	}
 
 	opt := transactionOptions[0]
-
 	filters := make(map[string]interface{})
 	if len(opt.IDs) > 0 {
 		filters["id"] = opt.IDs

@@ -1,4 +1,4 @@
-package ledger
+package transaction
 
 import (
 	"math"
@@ -13,8 +13,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"proglog/ledger/options"
-	"proglog/ledger/postgres"
+	"ledger/transaction/options"
+	"ledger/transaction/postgres"
 )
 
 func TestTransactionRepo(t *testing.T) {
@@ -55,8 +55,12 @@ func (s *Suite) SetupSuite() {
 }
 
 func (s *Suite) SetupTest() {
-	s.db.MustExec("DElETE FROM transaction")
+	s.teardown()
 	s.createTransactions(10)
+}
+
+func (s *Suite) teardown() {
+	s.db.MustExec("DElETE FROM transaction")
 }
 
 func (s *Suite) createTransactions(length int) {

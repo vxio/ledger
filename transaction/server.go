@@ -1,4 +1,4 @@
-package ledger
+package transaction
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"github.com/shopspring/decimal"
 	"google.golang.org/grpc"
 
-	api "proglog/api/v1"
+	api "ledger/api/v1"
 )
 
 // Creates a gRPC server and registers our Server with it
@@ -27,7 +27,7 @@ func NewServer(config *Config, opts ...grpc.ServerOption) (*grpc.Server, error) 
 	return grpcServer, nil
 }
 
-// Config used to create a new Server
+// config used to create a new Server
 type Config struct {
 	Repo      TransactionRepo
 	LogClient api.LogClient
@@ -43,9 +43,6 @@ type Server struct {
 	repo TransactionRepo
 }
 
-//
-//
-//
 func (l *Server) CreateTransaction(ctx context.Context, req *api.TransactionRequest) (*api.TransactionResponse, error) {
 	senderId := uuid.New()
 	receiverId := uuid.New()
@@ -60,7 +57,7 @@ func (l *Server) CreateTransaction(ctx context.Context, req *api.TransactionRequ
 
 	b, _ := proto.Marshal(&t)
 
-	// store in our log
+	// store in our write-ahead-log
 	request := &api.ProduceRequest{
 		Record: &api.Record{Value: b},
 	}
@@ -88,7 +85,6 @@ func (l *Server) CreateTransaction(ctx context.Context, req *api.TransactionRequ
 		return nil, err
 	}
 
-	// return the transaction
 	res := &api.TransactionResponse{
 		Transaction: &api.Transaction{
 			SenderId:   t.GetSenderId(),

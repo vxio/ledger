@@ -10,17 +10,20 @@ import (
 	"strings"
 	"sync"
 
-	api "proglog/api/v1"
+	api "ledger/api/v1"
 )
 
+// Ordered, append-only, write-ahead log
 type Log struct {
 	mu sync.RWMutex
 
 	Dir    string
 	Config Config
 
+	// pointer to the active segment to append to
 	activeSegment *segment
-	segments      []*segment
+	// list of segments
+	segments []*segment
 }
 
 func NewLog(dir string, c Config) (*Log, error) {
@@ -65,6 +68,7 @@ func NewLog(dir string, c Config) (*Log, error) {
 	return l, nil
 }
 
+// append the record to the log and return its offset
 func (l *Log) Append(record *api.Record) (uint64, error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -72,26 +76,31 @@ func (l *Log) Append(record *api.Record) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
+	// if the segment is at its max size, allocate a new segment
 	if l.activeSegment.IsMaxed() {
 		err = l.newSegment(off + 1)
 	}
 	return off, err
 }
 
-func (l *Log) Read(off uint64) (*api.Record, error) {
+// get a record by offset
+func (l *Log) Read(offset uint64) (*api.Record, error) {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
+
 	var s *segment
+	// segments are ordered oldest to newest
 	for _, segment := range l.segments {
-		if segment.baseOffset <= off {
+		if segment.baseOffset <= offset {
 			s = segment
 			break
 		}
 	}
-	if s == nil || s.nextOffset <= off {
-		return nil, api.ErrOffsetOutOfRange{Offset: off}
+
+	if s == nil || s.nextOffset <= offset {
+		return nil, api.ErrOffsetOutOfRange{Offset: offset}
 	}
-	return s.Read(off)
+	return s.Read(offset)
 }
 
 func (l *Log) LowestOffset() (uint64, error) {
@@ -155,6 +164,7 @@ func (l *Log) Remove() error {
 	return os.RemoveAll(l.Dir)
 }
 
+// Resets the log by removing all of its contents and creating a new instance of log
 func (l *Log) Reset() error {
 	if err := l.Remove(); err != nil {
 		return err
@@ -168,6 +178,7 @@ func (l *Log) Reset() error {
 	return nil
 }
 
+// Returns an io.Reader to read the whole log
 func (l *Log) Reader() io.Reader {
 	l.mu.RLock()
 	defer l.mu.RUnlock()

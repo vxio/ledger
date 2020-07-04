@@ -1,4 +1,4 @@
-package ledger
+package transaction
 
 import (
 	"time"

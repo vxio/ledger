@@ -9,7 +9,7 @@ import (
 	"google.golang.org/grpc/balancer/base"
 	"google.golang.org/grpc/resolver"
 
-	"proglog/internal/loadbalance"
+	"ledger/internal/loadbalance"
 )
 
 func TestPickerProducesToLeader(t *testing.T) {

@@ -7,9 +7,10 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 
-	api "proglog/api/v1"
+	api "ledger/api/v1"
 )
 
+// Segment handles operations between the store and index
 type segment struct {
 	store *store
 	index *index
@@ -25,7 +26,6 @@ func newSegment(dir string, baseOffset uint64, c Config) (*segment, error) {
 		baseOffset: baseOffset,
 		config:     c,
 	}
-	var err error
 	storeFile, err := os.OpenFile(
 		//  filaname is {baseOffset}.store, e.g. 10.store
 		path.Join(dir, fmt.Sprintf("%d%s", baseOffset, ".store")),
@@ -57,30 +57,35 @@ func newSegment(dir string, baseOffset uint64, c Config) (*segment, error) {
 	return s, nil
 }
 
+// Appends the record and returns the record's offset
 func (s *segment) Append(record *api.Record) (offset uint64, err error) {
 	record.Offset = s.nextOffset
 	b, err := proto.Marshal(record)
 	if err != nil {
 		return 0, err
 	}
+
 	_, pos, err := s.store.Append(b)
 	if err != nil {
 		return 0, err
 	}
-	if err = s.index.Write(
+	err = s.index.Write(
 		// index offsets are relative to base offset
-		uint32(s.nextOffset-uint64(s.baseOffset)),
+		uint32(s.nextOffset-s.baseOffset),
 		pos,
-	); err != nil {
+	)
+	if err != nil {
 		return 0, err
 	}
+
 	cur := s.nextOffset
-	s.nextOffset++
+	s.nextOffset += 1
 	return cur, nil
 }
 
-func (s *segment) Read(off uint64) (*api.Record, error) {
-	_, pos, err := s.index.Read(int64(off - s.baseOffset))
+// Find the record by offset
+func (s *segment) Read(offset uint64) (*api.Record, error) {
+	_, pos, err := s.index.Read(int64(offset - s.baseOffset))
 	if err != nil {
 		return nil, err
 	}
@@ -93,6 +98,7 @@ func (s *segment) Read(off uint64) (*api.Record, error) {
 	return record, err
 }
 
+// Determins whether the segment has reached its max size
 func (s *segment) IsMaxed() bool {
 	return s.store.size >= s.config.Segment.MaxStoreBytes ||
 		s.index.size >= s.config.Segment.MaxIndexBytes
@@ -108,6 +114,7 @@ func (s *segment) Close() error {
 	return nil
 }
 
+// Close the segment and removes all index and store files
 func (s *segment) Remove() error {
 	if err := s.Close(); err != nil {
 		return err
@@ -119,12 +126,4 @@ func (s *segment) Remove() error {
 		return err
 	}
 	return nil
-}
-
-func nearestMultiple(j, k uint64) uint64 {
-	if j >= 0 {
-		return (j / k) * k
-	}
-	return ((j - k + 1) / k) * k
-
 }

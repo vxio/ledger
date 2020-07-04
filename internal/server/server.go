@@ -11,9 +11,10 @@ import (
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 
-	api "proglog/api/v1"
+	api "ledger/api/v1"
 )
 
+// ACL policy keywords
 const (
 	objectWildcard = "*"
 	produceAction  = "produce"
@@ -23,9 +24,9 @@ const (
 var _ api.LogServer = (*grpcServer)(nil)
 
 type Config struct {
-	CommitLog  CommitLog
-	Authorizer Authorizer
-	GetSeverer GetServerer
+	CommitLog    CommitLog
+	Authorizer   Authorizer
+	ServerGetter ServerGetter
 }
 
 type CommitLog interface {
@@ -37,7 +38,7 @@ type Authorizer interface {
 	Authorize(subject, object, action string) error
 }
 
-type GetServerer interface {
+type ServerGetter interface {
 	GetServers() ([]*api.Server, error)
 }
 
@@ -46,27 +47,18 @@ type grpcServer struct {
 }
 
 func NewGRPCServer(config *Config, opts ...grpc.ServerOption) (*grpc.Server, error) {
-	// todo: should actually change this to another flag here for disabling authentication
 	if config.Authorizer != nil {
 		opts = append(opts,
-			grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(grpc_auth.StreamServerInterceptor(authenticate))),
-			grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(grpc_auth.UnaryServerInterceptor(authenticate))),
+			grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(grpc_auth.StreamServerInterceptor(identify))),
+			grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(grpc_auth.UnaryServerInterceptor(identify))),
 		)
 	}
-	grpcServer := grpc.NewServer(opts...)
+	server := grpc.NewServer(opts...)
 
-	logServer, err := newServer(config)
-	if err != nil {
-		return nil, err
-	}
+	logServer := &grpcServer{config}
 
-	api.RegisterLogServer(grpcServer, logServer)
-	return grpcServer, nil
-}
-
-func newServer(config *Config) (*grpcServer, error) {
-	s := &grpcServer{config}
-	return s, nil
+	api.RegisterLogServer(server, logServer)
+	return server, nil
 }
 
 func (this *grpcServer) Produce(ctx context.Context, req *api.ProduceRequest) (*api.ProduceResponse, error) {
@@ -103,7 +95,6 @@ func (this *grpcServer) Consume(ctx context.Context, req *api.ConsumeRequest) (*
 	}, nil
 }
 
-// bi-direction stream
 func (this *grpcServer) ProduceStream(stream api.Log_ProduceStreamServer) error {
 	for {
 		// get an incoming
@@ -155,7 +146,7 @@ func (this *grpcServer) ConsumeStream(req *api.ConsumeRequest, stream api.Log_Co
 }
 
 func (s *grpcServer) GetServers(ctx context.Context, req *api.GetServersRequest) (*api.GetServersResponse, error) {
-	servers, err := s.GetSeverer.GetServers()
+	servers, err := s.ServerGetter.GetServers()
 	if err != nil {
 		return nil, err
 	}
@@ -163,8 +154,9 @@ func (s *grpcServer) GetServers(ctx context.Context, req *api.GetServersRequest)
 	return &api.GetServersResponse{Servers: servers}, nil
 }
 
-// intercepter reads subject out of the client's cert and writes it to the RPC's context
-func authenticate(ctx context.Context) (context.Context, error) {
+// Identify the subject to enable authorization
+// Interceptor/middleware reads subject out of the client's cert and writes it to the RPC's context
+func identify(ctx context.Context) (context.Context, error) {
 	peer, ok := peer.FromContext(ctx)
 	if !ok {
 		return ctx, status.New(codes.Unknown, "couldn't find peer info").Err()

@@ -11,20 +11,20 @@ import (
 	"google.golang.org/grpc/resolver"
 	"google.golang.org/grpc/serviceconfig"
 
-	api "proglog/api/v1"
-	"proglog/internal/loadbalance"
-	"proglog/internal/network"
-	"proglog/internal/server"
-	"proglog/test/testutil"
+	api "ledger/api/v1"
+	"ledger/config"
+	"ledger/internal/loadbalance"
+	"ledger/internal/network"
+	"ledger/internal/server"
 )
 
 func TestResolver(t *testing.T) {
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 	tlsConfig, err := network.SetupTLSConfig(network.TLSConfig{
-		CertFile:      testutil.ServerCertFile,
-		KeyFile:       testutil.ServerKeyFile,
-		CAFile:        testutil.CAFile,
+		CertFile:      config.ServerCertFile,
+		KeyFile:       config.ServerKeyFile,
+		CAFile:        config.CAFile,
 		ServerAddress: l.Addr().String(),
 		Server:        true,
 	})
@@ -33,7 +33,7 @@ func TestResolver(t *testing.T) {
 	serverCreds := credentials.NewTLS(tlsConfig)
 	srv, err := server.NewGRPCServer(
 		&server.Config{
-			GetSeverer: &getServers{},
+			ServerGetter: &getServers{},
 		},
 		grpc.Creds(serverCreds,
 		))
@@ -42,9 +42,9 @@ func TestResolver(t *testing.T) {
 
 	clientConn := &clientConn{}
 	tlsConfig, err = network.SetupTLSConfig(network.TLSConfig{
-		CertFile:      testutil.RootClientCertFile,
-		KeyFile:       testutil.RootClientKeyFile,
-		CAFile:        testutil.CAFile,
+		CertFile:      config.RootClientCertFile,
+		KeyFile:       config.RootClientKeyFile,
+		CAFile:        config.CAFile,
 		ServerAddress: "127.0.0.1",
 		Server:        false,
 	})

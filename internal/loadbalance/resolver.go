@@ -11,13 +11,10 @@ import (
 	"google.golang.org/grpc/resolver"
 	"google.golang.org/grpc/serviceconfig"
 
-	api "proglog/api/v1"
+	api "ledger/api/v1"
 )
 
-// todo: remove init and call externally in agent
-func init() {
-	resolver.Register(&Resolver{})
-}
+const Name = "ledger"
 
 // type that will fulfill gRPC's resolver.Builder and resolver.Resolver interfaces
 type Resolver struct {
@@ -27,11 +24,10 @@ type Resolver struct {
 	serviceConfig *serviceconfig.ParseResult
 }
 
-const Name = "proglog"
-
 // build sets up a client connection to our server so the resolver can call the GetServers() api
 func (r *Resolver) Build(target resolver.Target, cc resolver.ClientConn,
 	opts resolver.BuildOptions) (resolver.Resolver, error) {
+	resolver.Register(r)
 	r.clientConn = cc
 	var dialOpts []grpc.DialOption
 	if opts.DialCreds != nil {
@@ -73,7 +69,7 @@ func (r *Resolver) ResolveNow(resolver.ResolveNowOptions) {
 	ctx := context.Background()
 	res, err := client.GetServers(ctx, &api.GetServersRequest{})
 	if err != nil {
-		log.Printf("[ERROR] proglog: failed to resolve servers: %v", err)
+		log.Printf("[ERROR] ledger: failed to resolve servers: %v", err)
 		return
 	}
 	var addrs []resolver.Address
@@ -97,6 +93,6 @@ func (r *Resolver) ResolveNow(resolver.ResolveNowOptions) {
 
 func (r *Resolver) Close() {
 	if err := r.resolverConn.Close(); err != nil {
-		log.Printf("[ERROR] proglog: failed to close conn: %v", err)
+		log.Printf("[ERROR] ledger: failed to close conn: %v", err)
 	}
 }

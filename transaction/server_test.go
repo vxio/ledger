@@ -1,4 +1,4 @@
-package ledger_test
+package transaction_test
 
 import (
 	"context"
@@ -14,11 +14,11 @@ import (
 	"github.com/travisjeffery/go-dynaport"
 	"google.golang.org/grpc"
 
-	api "proglog/api/v1"
-	"proglog/internal/log"
-	"proglog/internal/server"
-	"proglog/ledger"
-	"proglog/ledger/postgres"
+	api "ledger/api/v1"
+	"ledger/internal/log"
+	"ledger/internal/server"
+	"ledger/transaction"
+	"ledger/transaction/postgres"
 )
 
 func TestServer(t *testing.T) {
@@ -74,8 +74,8 @@ func (s *Suite) SetupSuite() {
 
 	// create server and client for `log`
 	logServer, err := server.NewGRPCServer(&server.Config{
-		CommitLog:  commitLog,
-		GetSeverer: nil,
+		CommitLog:    commitLog,
+		ServerGetter: nil,
 	})
 	s.NoError(err)
 	s.logServer = logServer
@@ -91,10 +91,10 @@ func (s *Suite) SetupSuite() {
 	s.NoError(err)
 	s.logClient = api.NewLogClient(conn)
 
-	repo, err := ledger.NewPostgresRepo(s.db)
+	repo, err := transaction.NewPostgresRepo(s.db)
 	s.NoError(err)
 	// create server and client for `ledger`
-	ledgerServer, err := ledger.NewServer(&ledger.Config{
+	ledgerServer, err := transaction.NewServer(&transaction.Config{
 		Repo:      repo,
 		LogClient: s.logClient,
 	})

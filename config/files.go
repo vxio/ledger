@@ -5,16 +5,22 @@ import (
 	"path/filepath"
 )
 
+// file references for authentication and authorization between client and server
 var (
-	CAFile               = configFile("ca.pem")
-	ServerCertFile       = configFile("server.pem")
-	ServerKeyFile        = configFile("server-key.pem")
+	// generated certificate authority
+	CAFile = configFile("ca.pem")
+	// Server certificate and key
+	ServerCertFile = configFile("server.pem")
+	ServerKeyFile  = configFile("server-key.pem")
+	// Unauthorized/unknown client certificate and key
 	NobodyClientCertFile = configFile("nobody-client.pem")
 	NobodyClientKeyFile  = configFile("nobody-client-key.pem")
-	RootClientCertFile   = configFile("root-client.pem")
-	RootClientKeyFile    = configFile("root-client-key.pem")
-	ACLModelFile         = configFile("model.conf")
-	ACLPolicyFile        = configFile("policy.csv")
+	// Authorized/trusted client certificate and key
+	RootClientCertFile = configFile("root-client.pem")
+	RootClientKeyFile  = configFile("root-client-key.pem")
+	// access control lists
+	ACLModelFile  = configFile("model.conf")
+	ACLPolicyFile = configFile("policy.csv")
 )
 
 func configFile(filename string) string {
@@ -28,5 +34,5 @@ func configFile(filename string) string {
 		panic(err)
 	}
 
-	return filepath.Join(homeDir, ".proglog", filename)
+	return filepath.Join(homeDir, ".ledger", filename)
 }

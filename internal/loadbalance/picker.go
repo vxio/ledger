@@ -9,13 +9,6 @@ import (
 	"google.golang.org/grpc/balancer/base"
 )
 
-// todo: remove init() and call externally
-func init() {
-	balancer.Register(
-		base.NewBalancerBuilderV2(Name, &Picker{}, base.Config{}),
-	)
-}
-
 var _ base.V2PickerBuilder = (*Picker)(nil)
 
 type Picker struct {
@@ -26,6 +19,9 @@ type Picker struct {
 }
 
 func (p *Picker) Build(buildInfo base.PickerBuildInfo) balancer.V2Picker {
+	balancer.Register(
+		base.NewBalancerBuilderV2(Name, p, base.Config{}),
+	)
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	var followers []balancer.SubConn
@@ -48,8 +44,7 @@ func (p *Picker) Pick(info balancer.PickInfo) (balancer.PickResult, error) {
 	defer p.mu.RUnlock()
 	var result balancer.PickResult
 
-	// inspect the RPC's method name to know whether the call is an produce or consume
-	// call
+	// inspect the RPC's method name to know whether the call is an produce or consume call
 	if strings.Contains(info.FullMethodName, "Produce") ||
 		len(p.followers) == 0 {
 		result.SubConn = p.leader

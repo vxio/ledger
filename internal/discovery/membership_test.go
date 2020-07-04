@@ -12,59 +12,71 @@ import (
 )
 
 func TestMembership(t *testing.T) {
-	m, handler := setupMember(t, nil)
-	m, _ = setupMember(t, m)
-	m, _ = setupMember(t, m)
+	n := 3
+
+	members, h := setupMembers(t, n)
 
 	require.Eventually(t, func() bool {
-		return 2 == len(handler.joins) &&
-			3 == len(m[0].Members()) &&
-			3 == len(m[1].Members()) &&
-			3 == len(m[2].Members()) &&
-			0 == len(handler.leaves)
+		return (n-1) == len(h.joins) &&
+			// all members get notified of all other members
+			n == len(members[0].Members()) &&
+			n == len(members[1].Members()) &&
+			n == len(members[2].Members()) &&
+			0 == len(h.leaves)
 	}, 3*time.Second, 250*time.Millisecond)
 
-	require.NoError(t, m[2].Leave())
+	// set last member to leave the cluster
+	nodeLeaveIdx := n - 1
+	require.NoError(t, members[nodeLeaveIdx].Leave())
 	require.Eventually(t, func() bool {
-		return 2 == len(handler.joins) &&
-			3 == len(m[0].Members()) &&
-			serf.StatusLeft == m[0].Members()[2].Status &&
-			1 == len(handler.leaves)
+		return (n-1) == len(h.joins) &&
+			n == len(members[0].Members()) &&
+			serf.StatusLeft == members[0].Members()[nodeLeaveIdx].Status &&
+			1 == len(h.leaves)
 	}, 3*time.Second, 250*time.Millisecond)
 
-	require.Equal(t, fmt.Sprintf("%d", 2), <-handler.leaves)
+	require.Equal(t,
+		fmt.Sprintf("%d", nodeLeaveIdx), // member's id
+		<-h.leaves)
 }
 
-func setupMember(t *testing.T, members []*Membership) ([]*Membership, *handler) {
-	id := len(members)
-	ports := dynaport.Get(1)
-	addr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("127.0.0.1:%d", ports[0]))
-	require.NoError(t, err)
+func setupMembers(t *testing.T, numMembers int) ([]*Membership, *handler) {
+	ports := dynaport.Get(numMembers)
 
-	tags := map[string]string{
-		"rpc_addr": addr.String(),
-	}
-	c := Config{
-		NodeName: fmt.Sprintf("%d", id),
-		BindAddr: addr,
-		Tags:     tags,
-	}
+	var members []*Membership
+	var leaderHandler *handler
+	for i := 0; i < numMembers; i++ {
+		addr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("127.0.0.1:%d", ports[i]))
+		require.NoError(t, err)
 
-	h := &handler{}
-	if len(members) == 0 {
-		h.joins = make(chan map[string]string, 3)
-		h.leaves = make(chan string, 3)
-	} else {
-		// bind nodes [2,3] to the node [1]
-		c.StartJoinAddrs = []string{
-			members[0].BindAddr.String(),
+		tags := map[string]string{
+			"rpc_addr": addr.String(),
 		}
+		c := Config{
+			NodeName: fmt.Sprintf("%d", i),
+			BindAddr: addr,
+			Tags:     tags,
+		}
+
+		// node at 0th index is the leader
+		h := &handler{}
+		if i != 0 {
+			c.StartJoinAddrs = []string{members[0].Config.BindAddr.String()}
+		} else {
+			// only the leader uses the handler to tracks joins and leaves
+			h = &handler{
+				joins:  make(chan map[string]string, numMembers),
+				leaves: make(chan string, numMembers),
+			}
+			leaderHandler = h
+		}
+
+		membership, err := New(h, c)
+		require.NoError(t, err)
+		members = append(members, membership)
 	}
 
-	m, err := New(h, c)
-	require.NoError(t, err)
-	members = append(members, m)
-	return members, h
+	return members, leaderHandler
 }
 
 // handler mock

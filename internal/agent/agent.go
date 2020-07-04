@@ -14,10 +14,10 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
-	"proglog/internal/auth"
-	"proglog/internal/discovery"
-	"proglog/internal/log"
-	"proglog/internal/server"
+	"ledger/internal/auth"
+	"ledger/internal/discovery"
+	"ledger/internal/log"
+	"ledger/internal/server"
 )
 
 func New(config Config) (*Agent, error) {
@@ -38,26 +38,45 @@ func New(config Config) (*Agent, error) {
 			return nil, err
 		}
 	}
-	var err error
 
 	// launch the server
 	go a.serve()
 
-	return a, err
+	return a, nil
 }
 
-func (this *Agent) serve() error {
-	err := this.mux.Serve()
+type Agent struct {
+	Config Config
+
+	// multiplexer to service different services on the same port
+	// e.g. on the same port we can serve our log server with our Raft servers
+	mux cmux.CMux
+	// distributed log service
+	log *log.DistributedLog
+	// server for our log service that clients can make requests to
+	server *grpc.Server
+	// service discovery
+	membership *discovery.Membership
+
+	// indicates that this agent has already shutdown
+	shutdown bool
+	// stream used to signal a shutdown
+	shutdowns    chan struct{}
+	shutdownLock sync.Mutex
+}
+
+func (a *Agent) serve() error {
+	err := a.mux.Serve()
 	if err != nil {
-		_ = this.Shutdown()
+		_ = a.Shutdown()
 		return err
 	}
 
 	return nil
 }
 
-func (this *Agent) setupLog() error {
-	raftLn := this.mux.Match(func(reader io.Reader) bool {
+func (a *Agent) setupLog() error {
+	raftLn := a.mux.Match(func(reader io.Reader) bool {
 		// read one byte to identify the raft connection
 		b := make([]byte, 1)
 		_, err := reader.Read(b)
@@ -73,46 +92,46 @@ func (this *Agent) setupLog() error {
 	logConfig := log.Config{}
 	logConfig.Raft.StreamLayer = log.NewStreamLayer(
 		raftLn,
-		this.Config.ServerTLSConfig,
-		this.Config.PeerTLSConfig,
+		a.Config.ServerTLSConfig,
+		a.Config.PeerTLSConfig,
 	)
-	logConfig.Raft.LocalID = raft.ServerID(this.Config.NodeName)
-	logConfig.Raft.Bootstrap = this.Config.Bootstrap
+	logConfig.Raft.LocalID = raft.ServerID(a.Config.NodeName)
+	logConfig.Raft.Bootstrap = a.Config.Bootstrap
 
 	var err error
-	this.log, err = log.NewDistributedLog(
-		this.Config.DataDir,
+	a.log, err = log.NewDistributedLog(
+		a.Config.DataDir,
 		logConfig,
 	)
 	if err != nil {
 		return err
 	}
 
-	if this.Config.Bootstrap {
-		return this.log.WaitForLeader(3 * time.Second)
+	if a.Config.Bootstrap {
+		return a.log.WaitForLeader(3 * time.Second)
 	}
 
 	return nil
 }
 
-func (this *Agent) setupServer() error {
+func (a *Agent) setupServer() error {
 	serverConfig := &server.Config{
-		CommitLog: this.log,
+		CommitLog: a.log,
 		Authorizer: auth.New(
-			this.Config.ACLModelFile,
-			this.Config.ACLPolicyFile,
+			a.Config.ACLModelFile,
+			a.Config.ACLPolicyFile,
 		),
-		GetSeverer: this.log,
+		ServerGetter: a.log,
 	}
 
 	var opts []grpc.ServerOption
-	if this.Config.ServerTLSConfig != nil {
-		creds := credentials.NewTLS(this.Config.ServerTLSConfig)
+	if a.Config.ServerTLSConfig != nil {
+		creds := credentials.NewTLS(a.Config.ServerTLSConfig)
 		opts = append(opts, grpc.Creds(creds))
 	}
 
 	var err error
-	this.server, err = server.NewGRPCServer(serverConfig, opts...)
+	a.server, err = server.NewGRPCServer(serverConfig, opts...)
 	if err != nil {
 		return err
 	}
@@ -121,85 +140,84 @@ func (this *Agent) setupServer() error {
 	// we've already added a matcher for the Raft connections
 	// so we know all other connections are gRPC
 	// thus, we can use the Any matcher to get the right listener
-	grpcLn := this.mux.Match(cmux.Any())
+	grpcLn := a.mux.Match(cmux.Any())
 	go func() {
-		err := this.server.Serve(grpcLn)
+		err := a.server.Serve(grpcLn)
 		if err != nil {
-			_ = this.Shutdown()
+			_ = a.Shutdown()
 		}
 	}()
 
 	return nil
 }
 
-func (this *Agent) setupMembership() error {
+func (a *Agent) setupMembership() error {
 	var err error
-	this.membership, err = discovery.New(this.log, discovery.Config{
-		NodeName: this.Config.NodeName,
-		BindAddr: this.Config.BindAddr,
+	a.membership, err = discovery.New(a.log, discovery.Config{
+		NodeName: a.Config.NodeName,
+		BindAddr: a.Config.BindAddr,
 		Tags: map[string]string{
-			"rpc_addr": this.Config.RPCAddr(),
+			"rpc_addr": a.Config.RPCAddr(),
 		},
-		StartJoinAddrs: this.Config.StartJoinAddrs,
+		StartJoinAddrs: a.Config.StartJoinAddrs,
 	})
 
 	return err
 }
 
-type Agent struct {
-	Config
-
-	mux        cmux.CMux
-	log        *log.DistributedLog
-	server     *grpc.Server
-	membership *discovery.Membership
-
-	shutdown  bool
-	shutdowns chan struct {
-	}
-	shutdownLock sync.Mutex
-}
-
 type Config struct {
 	ServerTLSConfig *tls.Config
-	PeerTLSConfig   *tls.Config
-	DataDir         string
-	// BindAddr.IP is base address for both RPC and Serf
-	// BindAddr.Port is used by Serf
+	// the createClient's tls config
+	PeerTLSConfig *tls.Config
+	// directory that will store our logs
+	DataDir string
+	// BindAddr's
+	// - IP is the base address for both RPC and Serf
+	// - Port is used by Serf
 	BindAddr *net.TCPAddr
 	// RPCPort used for our server address
-	RPCPort        int
-	NodeName       string
+	RPCPort int
+	// the node's name in the cluster
+	NodeName string
+	// If you want to add a new node to an existing cluster,
+	// we must point the new node to at least one of the nodes in the cluster
+	// When it connects to one of the nodes, it'll learn about the other nodes thanks to Serf
+	// StartJoinAddrs indicates the addresses of member nodes in the cluster
+	// In a production, specify atleast 3 address to avoid 1-2 node failures
 	StartJoinAddrs []string
-	ACLModelFile   string
-	ACLPolicyFile  string
-	Bootstrap      bool
+	// authorization config files
+	ACLModelFile  string
+	ACLPolicyFile string
+	// Indicate this server to bootstrap the cluster
+	// Should be set to true when starting the first node of the cluster to elect it as the leader
+	Bootstrap bool
 }
 
+// Returns the full gRPC address, e.g. "127.0.0.1:8080"
 func (this *Config) RPCAddr() string {
 	return fmt.Sprintf("%s:%d", this.BindAddr.IP.String(), this.RPCPort)
 }
 
-func (this *Agent) Shutdown() error {
+func (a *Agent) Shutdown() error {
 	// ensures that Shutdown is only called once even if users call Shutdown() multiple times
-	this.shutdownLock.Lock()
-	defer this.shutdownLock.Unlock()
+	a.shutdownLock.Lock()
+	defer a.shutdownLock.Unlock()
 
-	if this.shutdown {
+	if a.shutdown {
 		return nil
 	}
 
-	this.shutdown = true
-	close(this.shutdowns) // todo: currently not used
+	a.shutdown = true
+	close(a.shutdowns) // todo: currently not used
 
 	serverCloseFn := func() error {
-		this.server.GracefulStop()
+		a.server.GracefulStop()
 		return nil
 	}
 	shutdown := []func() error{
-		this.membership.Leave,
+		a.membership.Leave,
 		serverCloseFn,
-		this.log.Close,
+		a.log.Close,
 	}
 	for _, fn := range shutdown {
 		err := fn()
@@ -211,19 +229,16 @@ func (this *Agent) Shutdown() error {
 	return nil
 }
 
-func (this *Agent) setupMux() error {
+// Setup our multiplexer to accept connections
+func (a *Agent) setupMux() error {
 	// creates a listener on our RPC address that'll accept both Raft and gRPC connections
-	// todo: use helper method
-	rpcAddr := fmt.Sprintf(
-		"%s:%d",
-		this.Config.BindAddr.IP.String(),
-		this.Config.RPCPort,
-	)
+	rpcAddr := a.Config.RPCAddr()
+
 	ln, err := net.Listen("tcp", rpcAddr)
 	if err != nil {
 		return err
 	}
 
-	this.mux = cmux.New(ln)
+	a.mux = cmux.New(ln)
 	return nil
 }
