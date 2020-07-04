@@ -1,0 +1,33 @@
+syntax = "proto3";
+package log.v1; //todo: this should go in its own package
+
+import "gogoproto/gogo.proto";
+import "google/protobuf/timestamp.proto";
+
+service Ledger {
+  rpc CreateTransaction(TransactionRequest) returns (TransactionResponse) {}
+}
+
+message TransactionRequest {
+  BigDecimal amount = 1;
+}
+
+message TransactionResponse {
+  Transaction transaction = 1;
+}
+
+message Transaction {
+  UUID sender_id = 1;
+  UUID receiver_id = 2;
+  BigDecimal amount = 3;
+  google.protobuf.Timestamp created_at = 4 [(gogoproto.stdtime) = true];
+}
+
+message UUID {
+  string value = 1;
+}
+
+message BigDecimal {
+  string value = 1;
+}
+

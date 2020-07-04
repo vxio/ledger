@@ -7,15 +7,6 @@ import (
 	"github.com/hashicorp/serf/serf"
 )
 
-// Membership wraps Serf to provide discovery and cluster membership to our services
-type Membership struct {
-	Config
-	handler Handler
-	serf    *serf.Serf
-	// events when a node joins or leaves the cluster
-	events chan serf.Event
-}
-
 func New(handler Handler, config Config) (*Membership, error) {
 	c := &Membership{
 		Config:  config,
@@ -29,16 +20,25 @@ func New(handler Handler, config Config) (*Membership, error) {
 	return c, nil
 }
 
+// Membership wraps Serf to provide discovery and cluster membership to our services
+type Membership struct {
+	Config  Config
+	handler Handler
+	serf    *serf.Serf
+	// events when a node joins or leaves the cluster
+	events chan serf.Event
+}
+
 func (this *Membership) setupSerf() error {
 	var err error
 	config := serf.DefaultConfig()
 	config.Init()
-	config.MemberlistConfig.BindAddr = this.BindAddr.IP.String()
-	config.MemberlistConfig.BindPort = this.BindAddr.Port
+	config.MemberlistConfig.BindAddr = this.Config.BindAddr.IP.String()
+	config.MemberlistConfig.BindPort = this.Config.BindAddr.Port
 	this.events = make(chan serf.Event)
 
 	config.EventCh = this.events
-	config.Tags = this.Tags
+	config.Tags = this.Config.Tags
 	config.NodeName = this.Config.NodeName
 	this.serf, err = serf.Create(config)
 	if err != nil {
@@ -46,8 +46,8 @@ func (this *Membership) setupSerf() error {
 	}
 
 	go this.eventHandler()
-	if this.StartJoinAddrs != nil {
-		_, err = this.serf.Join(this.StartJoinAddrs, true)
+	if this.Config.StartJoinAddrs != nil {
+		_, err = this.serf.Join(this.Config.StartJoinAddrs, true)
 		if err != nil {
 			return nil
 		}
@@ -67,11 +67,19 @@ type Config struct {
 	StartJoinAddrs []string
 }
 
+// Performs a Join or Leave operations when nodes join/leave the cluster
 type Handler interface {
 	Join(name, addr string) error
 	Leave(name, addr string) error
 }
 
+// Runs a loop reading from the events stream being written to by Serf
+//
+// When a node joins/leaves, Serfs sends an event to *all* nodes including the node that joined/left
+// if the node we got for an event is the node that joined/left, do nothing to avoid unnecessary replication
+//
+// Serf may coalesce multiple members updates into one event, so we must iterate through all members
+// e.g. 10 nodes join around the same time, Serf will send one Join event with 10 members
 func (this *Membership) eventHandler() {
 	for e := range this.events {
 		switch e.EventType() {
@@ -85,8 +93,8 @@ func (this *Membership) eventHandler() {
 		case serf.EventMemberLeave, serf.EventMemberFailed:
 			for _, m := range e.(serf.MemberEvent).Members {
 				if this.isLocal(m) {
-					// we return here since if the member leaving is itself,
-					// it no longer cares about the state of the cluster
+					// we return if the member leaving is itself,
+					// since it no longer needs to track the state of the cluster
 					return
 				}
 				this.handleLeave(m)
@@ -98,14 +106,14 @@ func (this *Membership) eventHandler() {
 func (this *Membership) handleJoin(m serf.Member) {
 	err := this.handler.Join(m.Name, m.Tags["rpc_addr"])
 	if err != nil {
-		log.Printf("[ERROR] proglog: failed to join: %s, %s", m.Name, m.Tags["rpc_addr"])
+		log.Printf("[ERROR] ledger: failed to join: %s, %s", m.Name, m.Tags["rpc_addr"])
 	}
 }
 
 func (this *Membership) handleLeave(m serf.Member) {
 	err := this.handler.Leave(m.Name, m.Tags["rpc_addr"])
 	if err != nil {
-		log.Printf("[ERROR] proglog: failed to leave: %s, %s", m.Name, m.Tags["rpc_addr"])
+		log.Printf("[ERROR] ledger: failed to leave: %s, %s", m.Name, m.Tags["rpc_addr"])
 	}
 }
 

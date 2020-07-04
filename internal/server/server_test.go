@@ -12,10 +12,9 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/status"
 
-	api "proglog/api/v1"
-	"proglog/config"
-	"proglog/internal/auth"
-	"proglog/internal/log-"
+	api "ledger/api/v1"
+	"ledger/config"
+	"ledger/internal/auth"
 )
 
 func TestServer(t *testing.T) {

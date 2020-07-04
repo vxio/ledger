@@ -53,6 +53,3 @@ message Server {
   string rpc_addr = 2;
   bool is_leader = 3;
 }
-
-
-

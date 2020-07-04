@@ -16,11 +16,11 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/status"
 
-	api "proglog/api/v1"
-	"proglog/config"
-	"proglog/internal/agent"
-	"proglog/internal/loadbalance"
-	"proglog/internal/network"
+	api "ledger/api/v1"
+	"ledger/config"
+	"ledger/internal/agent"
+	"ledger/internal/loadbalance"
+	"ledger/internal/network"
 )
 
 func TestAgent(t *testing.T) {
@@ -44,22 +44,32 @@ func TestAgent(t *testing.T) {
 	})
 	require.NoError(t, err)
 
+	getLeader := func() *agent.Agent { return agents[0] }
+	// setup agents
 	for i := 0; i < 3; i++ {
+		// Elect node 0 as the leader
+		isLeader := i == 0
+
 		ports := dynaport.Get(2)
-		bindAddr := &net.TCPAddr{IP: []byte{127, 0, 0, 1}, Port: ports[0]}
+		bindAddr := &net.TCPAddr{
+			IP:   []byte{127, 0, 0, 1},
+			Port: ports[0],
+		}
 		rpcPort := ports[1]
 
-		dataDir, err := ioutil.TempDir("", "server-test-log")
+		dataDir, err := ioutil.TempDir("", "test-distributed-log")
 		require.NoError(t, err)
 
 		var startJoinAddrs []string
-		if i != 0 {
-			startJoinAddrs = append(startJoinAddrs, agents[0].Config.BindAddr.String())
+
+		// for new nodes joining an existing cluster, make sure we give them a reference to the leader in the cluster
+		if !isLeader {
+			startJoinAddrs = append(startJoinAddrs, getLeader().Config.BindAddr.String())
 		}
 
 		agent, err := agent.New(agent.Config{
 			NodeName:        fmt.Sprintf("%d", i),
-			Bootstrap:       i == 0,
+			Bootstrap:       isLeader,
 			StartJoinAddrs:  startJoinAddrs,
 			BindAddr:        bindAddr,
 			RPCPort:         rpcPort,
@@ -83,12 +93,14 @@ func TestAgent(t *testing.T) {
 	// wait until agents have joined the cluster
 	time.Sleep(3 * time.Second)
 
-	leaderClient := client(t, agents[0], peerTLSConfig)
+	// write once to the log
+	logMessage := []byte("lorem ipsum")
+	leaderClient := createClient(t, getLeader(), peerTLSConfig)
 	produceResponse, err := leaderClient.Produce(
 		context.Background(),
 		&api.ProduceRequest{
 			Record: &api.Record{
-				Value: []byte("foo"),
+				Value: logMessage,
 			},
 		},
 	)
@@ -104,9 +116,9 @@ func TestAgent(t *testing.T) {
 		},
 	)
 	require.NoError(t, err)
-	require.Equal(t, consumeResponse.Record.Value, []byte("foo"))
+	require.Equal(t, consumeResponse.Record.Value, logMessage)
 
-	followerClient := client(t, agents[1], peerTLSConfig)
+	followerClient := createClient(t, agents[1], peerTLSConfig)
 	consumeResponse, err = followerClient.Consume(
 		context.Background(),
 		&api.ConsumeRequest{
@@ -114,8 +126,9 @@ func TestAgent(t *testing.T) {
 		},
 	)
 	require.NoError(t, err)
-	require.Equal(t, consumeResponse.Record.Value, []byte("foo"))
+	require.Equal(t, consumeResponse.Record.Value, logMessage)
 
+	// expect an error when we try to consume an out of range offset
 	consumeResponse, err = leaderClient.Consume(
 		context.Background(),
 		&api.ConsumeRequest{
@@ -129,7 +142,7 @@ func TestAgent(t *testing.T) {
 	require.Equal(t, got, want)
 }
 
-func client(t *testing.T, agent *agent.Agent, tlsConfig *tls.Config) api.LogClient {
+func createClient(t *testing.T, agent *agent.Agent, tlsConfig *tls.Config) api.LogClient {
 	tlsCreds := credentials.NewTLS(tlsConfig)
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(tlsCreds),

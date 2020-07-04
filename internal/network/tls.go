@@ -7,12 +7,16 @@ import (
 	"io/ioutil"
 )
 
+// Get a TLS configuration for either a server or client
 type TLSConfig struct {
 	CertFile      string
 	KeyFile       string
 	CAFile        string
 	ServerAddress string
-	Server        bool
+	// Indicates whether this is a server or client
+	// Server accepts incoming connections
+	// Client (the Peer) creates outgoing connections
+	Server bool
 }
 
 func SetupTLSConfig(cfg TLSConfig) (*tls.Config, error) {
