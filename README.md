@@ -16,7 +16,8 @@ Ledger is a money transaction journal built on top of a distributed write-ahead 
 
 #### Motivation
 I wrote a money transaction system to see how a log would be useful in scenarios where we'd need performance
-, scalability, and durability. 
+, scalability, and durability.
+
 But why incur this kind of overhead? Why not use the database as the source of truth?
 In a distributed system, services manage their own database and communicate across the network. Faults may
  occur in the form of network, machine, or process failure. Operations may result in updates for multiple databases
