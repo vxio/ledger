@@ -16,7 +16,14 @@ Ledger is a money transaction journal built on top of a distributed write-ahead 
 
 #### Motivation
 I wrote a money transaction system to see how a log would be useful in scenarios where we'd need performance
-, scalability, and durability. Logs are the core piece underlying many distributed data systems, other use cases
+, scalability, and durability. 
+But why incur this kind of overhead? Why not use the database as the source of truth?
+In a distributed system, services manage their own database and communicate across the network. Faults may
+ occur in the form of network, machine, or process failure. Operations may result in updates for multiple databases
+ . Replication latency may cause follower nodes to have stale data. To mitigate these faults, a write-ahead log is
+  useful for acting as the primary source of truth and tracking state changes. 
+
+Logs are the core piece underlying many distributed data systems, other use cases
  include:
 - Write-ahead logs in SQL or NoSQL stores
 - Version control 
@@ -24,10 +31,11 @@ I wrote a money transaction system to see how a log would be useful in scenarios
 - Event logging  
 <br /> 
 
+
 ## Implementation Details
 Basic description of what happens when the app creates a transaction record:
 1. The app composes a money transaction 
-1. The app sends the transaction data to our write-ahead log
+1. The app sends the transaction data to the write-ahead log
 1. The log receives the transaction record and persists it
     - Using the distributed version of the log, multiple copies of the transaction are saved to the log
 1. The log sends the transaction record back to the app
@@ -43,7 +51,7 @@ Advantages:
     - Using a single, long-lasting TCP connection over a new connection for each request
 
 ### Service Discovery using Serf
-Adding service discovery to our distributed log allows the service to automatically handle:
+Adding service discovery to the distributed log allows the service to automatically handle:
  - When a new server is added or removed from the cluster
  - Health checks for service instances and removes them if they're unresponsive
  - Unregistering services when they go offline
@@ -79,7 +87,7 @@ The log is a single writer, multiple reader distributed service. The leader-serv
 -servers handle read requests. 
   
 ### Issues
-- Read-modify-write operations: issues arise with latency in which the data in our underlying store may not reflect the
+- Read-modify-write operations: issues arise with latency in which the data in the underlying store may not reflect the
  most recent update in the log
 - Duplicate messages (what if the same record is sent to the log twice?)
 
