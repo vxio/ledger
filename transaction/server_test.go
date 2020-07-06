@@ -16,7 +16,7 @@ import (
 
 	api "ledger/api/v1"
 	"ledger/internal/log"
-	"ledger/internal/server"
+	"ledger/internal/web"
 	"ledger/transaction"
 	"ledger/transaction/postgres"
 )
@@ -73,7 +73,7 @@ func (s *Suite) SetupSuite() {
 	s.NoError(err)
 
 	// create server and client for `log`
-	logServer, err := server.NewGRPCServer(&server.Config{
+	logServer, err := web.NewGRPCServer(&web.Config{
 		CommitLog:    commitLog,
 		ServerGetter: nil,
 	})

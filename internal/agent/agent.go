@@ -15,9 +15,9 @@ import (
 	"google.golang.org/grpc/credentials"
 
 	"ledger/internal/auth"
-	"ledger/internal/discovery"
 	"ledger/internal/log"
-	"ledger/internal/server"
+	"ledger/internal/membership"
+	"ledger/internal/web"
 )
 
 func New(config Config) (*Agent, error) {
@@ -45,6 +45,7 @@ func New(config Config) (*Agent, error) {
 	return a, nil
 }
 
+// Agent connects and manages all the components for each service
 type Agent struct {
 	Config Config
 
@@ -56,7 +57,7 @@ type Agent struct {
 	// server for our log service that clients can make requests to
 	server *grpc.Server
 	// service discovery
-	membership *discovery.Membership
+	membership *membership.Membership
 
 	// indicates that this agent has already shutdown
 	shutdown bool
@@ -115,7 +116,7 @@ func (a *Agent) setupLog() error {
 }
 
 func (a *Agent) setupServer() error {
-	serverConfig := &server.Config{
+	serverConfig := &web.Config{
 		CommitLog: a.log,
 		Authorizer: auth.New(
 			a.Config.ACLModelFile,
@@ -131,7 +132,7 @@ func (a *Agent) setupServer() error {
 	}
 
 	var err error
-	a.server, err = server.NewGRPCServer(serverConfig, opts...)
+	a.server, err = web.NewGRPCServer(serverConfig, opts...)
 	if err != nil {
 		return err
 	}
@@ -153,7 +154,7 @@ func (a *Agent) setupServer() error {
 
 func (a *Agent) setupMembership() error {
 	var err error
-	a.membership, err = discovery.New(a.log, discovery.Config{
+	a.membership, err = membership.New(a.log, membership.Config{
 		NodeName: a.Config.NodeName,
 		BindAddr: a.Config.BindAddr,
 		Tags: map[string]string{

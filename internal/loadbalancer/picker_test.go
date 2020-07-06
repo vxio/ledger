@@ -1,4 +1,4 @@
-package loadbalance_test
+package loadbalancer_test
 
 import (
 	"testing"
@@ -9,7 +9,7 @@ import (
 	"google.golang.org/grpc/balancer/base"
 	"google.golang.org/grpc/resolver"
 
-	"ledger/internal/loadbalance"
+	"ledger/internal/loadbalancer"
 )
 
 func TestPickerProducesToLeader(t *testing.T) {
@@ -42,7 +42,7 @@ func TestPickerConsumesFromFollowers(t *testing.T) {
 	}
 }
 
-func setupTest() (*loadbalance.Picker, []*subConn) {
+func setupTest() (*loadbalancer.Picker, []*subConn) {
 	var subConns []*subConn
 	buildInfo := base.PickerBuildInfo{
 		ReadySCs: make(map[balancer.SubConn]base.SubConnInfo),
@@ -58,7 +58,7 @@ func setupTest() (*loadbalance.Picker, []*subConn) {
 		buildInfo.ReadySCs[sc] = base.SubConnInfo{Address: addr}
 		subConns = append(subConns, sc)
 	}
-	picker := &loadbalance.Picker{}
+	picker := &loadbalancer.Picker{}
 	picker.Build(buildInfo)
 	return picker, subConns
 }
