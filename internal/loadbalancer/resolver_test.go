@@ -1,4 +1,4 @@
-package loadbalance_test
+package loadbalancer_test
 
 import (
 	"net"
@@ -13,15 +13,14 @@ import (
 
 	api "ledger/api/v1"
 	"ledger/config"
-	"ledger/internal/loadbalance"
-	"ledger/internal/network"
-	"ledger/internal/server"
+	"ledger/internal/loadbalancer"
+	"ledger/internal/web"
 )
 
 func TestResolver(t *testing.T) {
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
-	tlsConfig, err := network.SetupTLSConfig(network.TLSConfig{
+	tlsConfig, err := web.SetupTLSConfig(web.TLSConfig{
 		CertFile:      config.ServerCertFile,
 		KeyFile:       config.ServerKeyFile,
 		CAFile:        config.CAFile,
@@ -31,8 +30,8 @@ func TestResolver(t *testing.T) {
 	require.NoError(t, err)
 
 	serverCreds := credentials.NewTLS(tlsConfig)
-	srv, err := server.NewGRPCServer(
-		&server.Config{
+	srv, err := web.NewGRPCServer(
+		&web.Config{
 			ServerGetter: &getServers{},
 		},
 		grpc.Creds(serverCreds,
@@ -41,7 +40,7 @@ func TestResolver(t *testing.T) {
 	go srv.Serve(l)
 
 	clientConn := &clientConn{}
-	tlsConfig, err = network.SetupTLSConfig(network.TLSConfig{
+	tlsConfig, err = web.SetupTLSConfig(web.TLSConfig{
 		CertFile:      config.RootClientCertFile,
 		KeyFile:       config.RootClientKeyFile,
 		CAFile:        config.CAFile,
@@ -59,7 +58,7 @@ func TestResolver(t *testing.T) {
 
 	// the resolver will call GetServers() to resolve the servers and
 	// update the client connection with the servers' addresses
-	r := &loadbalance.Resolver{}
+	r := &loadbalancer.Resolver{}
 	_, err = r.Build(
 		resolver.Target{Endpoint: l.Addr().String()},
 		clientConn,
