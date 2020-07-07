@@ -1,7 +1,7 @@
 Ledger
 ------
-Ledger is a money transaction journal built on top of a distributed write-ahead log. Transactions written to the log
- are ordered, append-only, and contains all transaction records. In more detail:
+Ledger is a money transaction ledger built on top of a distributed write-ahead log. Transactions written to the log
+ are ordered, immutable, and contains all transaction records. In more detail:
 - The log acts as the primary source of truth. The service's database state is derived from the log — making the
  application resilient to faults 
 - A replica of all transactions could be created from applying records from the log
