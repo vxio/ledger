@@ -16,18 +16,17 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/status"
 
-	"ledger/internal/tls"
-
 	api "ledger/api/v1"
 	"ledger/config"
 	"ledger/internal/agent"
 	"ledger/internal/loadbalancer"
+	"ledger/internal/web"
 )
 
 func TestAgent(t *testing.T) {
 	var agents []*agent.Agent
 
-	serverTLSConfig, err := tls.SetupTLSConfig(tls.TLSConfig{
+	serverTLSConfig, err := web.SetupTLSConfig(web.TLSConfig{
 		CertFile:      config.ServerCertFile,
 		KeyFile:       config.ServerKeyFile,
 		CAFile:        config.CAFile,
@@ -36,7 +35,7 @@ func TestAgent(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	peerTLSConfig, err := tls.SetupTLSConfig(tls.TLSConfig{
+	peerTLSConfig, err := web.SetupTLSConfig(web.TLSConfig{
 		CertFile:      config.RootClientCertFile,
 		KeyFile:       config.RootClientKeyFile,
 		CAFile:        config.CAFile,

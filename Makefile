@@ -7,7 +7,7 @@ Mgogoproto/gogo.proto=github.com/gogo/protobuf/proto,plugins=grpc:. \
 $$(go list -f '{{ .Dir }}' -m github.com/gogo/protobuf) \
 		--proto_path=.
 
-CONFIG_PATH=${HOME}/.ledger/
+CONFIG_PATH=${HOME}/.ledger
 
 .PHONY: init
 init:
@@ -54,3 +54,7 @@ gencert:
 test:
 	go test -race ./...
 
+TAG ?= 0.0.1
+
+build-docker:
+	docker build -t github.com/vxio/ledger:$(TAG) .
