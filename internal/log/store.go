@@ -82,3 +82,15 @@ func (s *store) ReadAt(pos uint64) ([]byte, error) {
 
 	return b, nil
 }
+
+// Close makes sure we persist buffered data before closing the file
+func (s *store) Close() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	err := s.buf.Flush()
+	if err != nil {
+		return err
+	}
+
+	return s.File.Close()
+}
