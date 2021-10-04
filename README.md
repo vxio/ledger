@@ -15,6 +15,8 @@ Ledger is a money transaction ledger built on top of a distributed write-ahead l
 - Raft (leader election and replication)
 
 #### Motivation
+**This was a learning project based off of the wonderful book: [Distributed Services with Go: Your Guide to Reliable, Scalable, and Maintainable Systems](https://www.amazon.com/Distributed-Services-Go-Reliable-Maintainable/dp/1680507605/ref=sr_1_2?dchild=1&keywords=distributed+systems+in+go&qid=1633376460&s=books&sr=1-2).**
+
 I wrote a money transaction system to see how a log would be useful in scenarios where we'd need performance
 , scalability, and durability.
 
